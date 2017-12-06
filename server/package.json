@@ -1,8 +1,8 @@
 {
-  "name": "twt_oauth",
-  "version": "1.0.0",
+  "name": "twiz-server",
+  "version": "0.0.0",
   "description": "Twitter authentication module (server code).",
-  "main": "twtOAuth.js",
+  "main": "twiz-server.js",
   "scripts": {
     "build": "npm install",
      "start": "npm run build"
