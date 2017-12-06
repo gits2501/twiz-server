@@ -1,7 +1,7 @@
 {
   "name": "twiz-server",
   "version": "0.0.0",
-  "description": "Twitter authentication module (server code).",
+  "description": " Authentication module (server code).",
   "main": "twiz-server.js",
   "scripts": {
     "build": "npm install",
@@ -11,10 +11,15 @@
  "dependencies":{
    "hmac_sha1": ">=0.1.0-beta.1" 
   },
-  "private": "true",
+  "keywards":["authentication"],
+  "repository":{
+    "type": "git",
+    "url":"https://github.com/gits2501/twiz.git"
+  },
   "author": {
      "name": "gits2501",
-      "url": "https://github.com/gits2501"
+      "url": "https://github.com/gits2501",
+    "email": "telhurat@hotmail.com",
    },
   "license": "MIT"
 }
