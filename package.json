@@ -2,7 +2,7 @@
   "name": "twiz-server",
   "version": "0.0.0",
   "description": " Authentication module (server code).",
-  "main": "twiz-server.js",
+  "main": "./server/twiz-server.js",
   "scripts": {
     "build": "npm install",
      "start": "npm run build"
@@ -14,12 +14,15 @@
   "keywards":["authentication"],
   "repository":{
     "type": "git",
-    "url":"https://github.com/gits2501/twiz.git"
+    "url": "https://github.com/gits2501/twiz-server.git"
   },
+  "bugs":{
+      "url": "https://github.com/gits2501/twiz-server/issues"
+   },
   "author": {
      "name": "gits2501",
       "url": "https://github.com/gits2501",
-    "email": "telhurat@hotmail.com",
+    "email": "telhurat@hotmail.com"
    },
   "license": "MIT"
 }
