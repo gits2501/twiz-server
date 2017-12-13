@@ -109,7 +109,7 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
 
    twtOAuthServer.prototype.getRequestHeaders = function(reqHeaders){ // takes headers from request if header
                                                                       // is supported ( is in reqHeaders)
-      var sentHeaders = this.request.headers 
+      var sentHeaders = this.request.headers // headers from request stream
       for(var name in reqHeaders){  // omiting content-length, since it must be 0, for POST with no body
          if(sentHeaders.hasOwnProperty(name) && name !== 'content-length') reqHeaders[name] = sentHeaders[name];
       }
@@ -122,17 +122,20 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
  
    twtOAuthServer.prototype.setOptions = function(vault, reqHeaders, options){ // Uses params sent in url to set
                                                                                // options for request to twiter
+                                                                               // and options that are used to 
+                                                                               // calculate signature (like SBS)
       for(var name in options){
-         if(this.sentOptions[name]) options[name] = this.sentOptions[name];  // If sentOptions has that 
-                                                                             // property and it is not undefined
-                                                                             // Querystring object is not 
-                                                                             // connected to Object from node 6.0
-                                                                             // It doesnt have hasOwnProperty(..)
+         if(this.sentOptions[name])
+         options[name] = this.sentOptions[name];  // If sentOptions has that 
+                                                  // property and it is not undefined
+                                                  // Querystring object is not 
+                                                  // connected to Object from node 6.0
+                                                  // It doesnt have hasOwnProperty(..)
       }
 
       options.headers = reqHeaders // sets headers
-      options.cert = vault.cert;   // sets cert 
-      options.key = vault.key;     // sets private_key
+      options.cert = vault.cert;   // sets certificate (https) 
+      options.key = vault.key;     // sets private_key used for https encription
       
       console.log(" OPTIONS: ",options);
    };
@@ -141,26 +144,26 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
                                                                            // signatureBaseString and authorize
                                                                            // header string
        this.setEncoding('utf8');                // Sets encoding to client request stream 
-       vault.signatureBaseString = "";          // Creates new property in vault
-
-       this.request.on('data', function(data){  // Gets sbs from request body and puts it into vault
-           vault.signatureBaseString += data;
+       vault.body = "";
+       this.request.on('data', function(data){  // Gets body from request and puts it into vault
+           vault.body += data;                  // 
        });
 
        this.request.on('end', function(){     
-               this.insertConsumerKey(vault, reqHeaders); // inserts consumer_key into SBS and AHS        
-               this.insertSignature(vault, reqHeaders);   // inserts signature into AHS
-               this.setOptions(vault, reqHeaders, options);           // sets options used for twitter requrest
-               this.send(options);
+              this.setOptions(vault, reqHeaders, options);        // sets options used for twitter request
+              this.insertConsumerKey(vault, reqHeaders, options); // inserts consumer_key into SBS and AHS      
+              this.insertSignature(vault, reqHeader, options);    // inserts signature into AHS
+              this.send(options);
        }.bind(this)); // Async function loose "this" context, binding it in order not to lose it.
    };
   
-   twtOAuthServer.prototype.insertConsumerKey = function(vault, reqHeaders){// insert missing keys in SBS and AHS
+   twtOAuthServer.prototype.insertConsumerKey = function(vault, reqHeaders, options){// insert missing keys in 
+                                                                                     // SBS and AHS
 
           var consumer_key = vault.consumer_key; 
 
-          var sbs = vault.signatureBaseString;             
-          vault.signatureBaseString = this.insertKey(sbs, this.missingVal_SBS, consumer_key); // set key in SBS
+          var sbs = options.legSBS; // SBS for one of 3-leg (when making authorization to twitter)             
+          options.legSBS = this.insertKey(sbs, this.missingVal_SBS, consumer_key); // set key in SBS
                                                     
           var hs = reqHeaders.authorization;    
           reqHeaders.authorization = this.insertKey(hs, this.missingVal_HS, consumer_key, true);// set key in AHS
@@ -181,15 +184,16 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
                                        // also
            console.log("inserted: "+ str); 
       return str; 
-
    }
-   twtOAuthServer.prototype.insertSignature = function(vault, reqHeaders){ // creates signature and inserts it
-                                                                           // into Authorization header string.
+
+   twtOAuthServer.prototype.insertSignature = function(vault, reqHeaders, options){ // creates signature and 
+                                                                         // inserts it
+                                                                         // into Authorization header string.
       var HmacSha1 = new hmacSha1('base64');                             // Create new hmac function
-      var consumer_secret = percentEncode(vault.consumer_secret) + "&";  // Prepare consumer_secret
-      // var oauth_token_secret for when we accure it
-      var  sbs = vault.signatureBaseString;                              // gets SBS
-      var signature = HmacSha1.digest(consumer_secret, sbs);             // calculates oauth_signature
+      var signingKey = percentEncode(vault.consumer_secret) + "&";  // Prepare consumer_secret
+      // var oauth_token_secret for when we accuire it
+      var  sbs = options.legSBS;                                    // gets SBS
+      var signature = HmacSha1.digest(signignKey, sbs);             // calculates oauth_signature
 
       reqHeaders.authorization = this.insertKey(reqHeaders.authorization, this.missingVal_HS, signature, true); 
                                                                          // inserts signature into AHS
