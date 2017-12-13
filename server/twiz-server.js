@@ -193,7 +193,7 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
       var signingKey = percentEncode(vault.consumer_secret) + "&";  // Prepare consumer_secret
       // var oauth_token_secret for when we accuire it
       var  sbs = options.legSBS;                                    // gets SBS
-      var signature = HmacSha1.digest(signignKey, sbs);             // calculates oauth_signature
+      var signature = HmacSha1.digest(signingKey, sbs);             // calculates oauth_signature
 
       reqHeaders.authorization = this.insertKey(reqHeaders.authorization, this.missingVal_HS, signature, true); 
                                                                          // inserts signature into AHS
