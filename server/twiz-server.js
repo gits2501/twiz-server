@@ -152,7 +152,7 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
        this.request.on('end', function(){     
               this.setOptions(vault, reqHeaders, options);        // sets options used for twitter request
               this.insertConsumerKey(vault, reqHeaders, options); // inserts consumer_key into SBS and AHS      
-              this.insertSignature(vault, reqHeader, options);    // inserts signature into AHS
+              this.insertSignature(vault, reqHeaders, options);    // inserts signature into AHS
               this.send(options);
        }.bind(this)); // Async function loose "this" context, binding it in order not to lose it.
    };
