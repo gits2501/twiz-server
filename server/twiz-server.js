@@ -37,12 +37,13 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
       }  
 
       var api_options = {      // options used for api calls 
-        apiSBS: ''
+        apiSBS: '',
+        apiAH: ''          
       }
 
       var oauth_options = Object.create(api_options) // options for 3-leg oauth requests  
       oauth_options.legSBS = '',                     // signature base string 
-      oauth_options.legAH = ''
+      oauth_options.legAH = ''                       // authorization header string
       
       var options = Object.create(oauth_options)     // http server request options
       options.host = "",
@@ -66,10 +67,12 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
          this.setUserParams(args, vault);    // Params needed for this lib to work
          this.getOptions(reqHeaders);        // Options sent in query portion of client request url and headers
          this.setOptions(vault, reqHeaders, options);        // sets options used for twitter request
-         
-         this.sendRequest(vault, reqHeaders, options); // inserts consumer_key into SBS and AHS
+         this.oauth('leg');                  // sends to 3-leg authentication       
       //   this.insertSignature(vault,reqHeaders);
       //   this.setOptions(options, vault);           // Options used to set request to twitter api
+      }
+      this.oauth = function (pref){              // joins the 
+          this.sendRequest(vault, options, pref) 
       }
       
    };
@@ -146,7 +149,7 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
       console.log(" OPTIONS: ",options);
    };
    
-   twtOAuthServer.prototype.sendRequest = function(vault, reqHeaders, options){ // inserts consumer key into
+   twtOAuthServer.prototype.sendRequest = function(vault, options, pref){  // inserts consumer key into
                                                                            // signatureBaseString and authorize
                                                                            // header string
        this.setEncoding('utf8');                // Sets encoding to client request stream 
@@ -156,24 +159,26 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
        });
 
        this.request.on('end', function(){     
-              this.insertConsumerKey(vault, reqHeaders, options); // inserts consumer_key into SBS and AHS      
-              this.insertSignature(vault, reqHeaders, options);    // inserts signature into AHS
+              this.insertConsumerKey(vault, options, pref); // inserts consumer_key into SBS and AHS      
+              this.insertSignature(vault, options, pref);   // inserts signature into AHS
+              this.setAuthorizationHeader(pref);            // sets AH with given prefix into request options
               this.send(options);
        }.bind(this)); // Async function loose "this" context, binding it in order not to lose it.
    };
   
-   twtOAuthServer.prototype.insertConsumerKey = function(vault, reqHeaders, options){// insert missing keys in 
-                                                                                     // SBS and AHS
+   twtOAuthServer.prototype.insertConsumerKey = function(vault, options, pref){// insert missing consumer key in 
+                                                                               // SBS and AHS
 
-          var consumer_key = vault.consumer_key; 
+          var consumer_key = vault.consumer_key; // get consumer key from vault 
 
-          var sbs = options.legSBS; // SBS for one of 3-leg (when making authorization to twitter)             
-          options.legSBS = this.insertKey(sbs, this.missingVal_SBS, consumer_key); // set key in SBS
+          var sbs = options[pref + 'SBS'];       // sbs (of some prefix)
+          options[pref + 'SBS'] = this.insertKey(sbs, this.missingVal_SBS, consumer_key); // set key in SBS
                                                     
-          var hs = reqHeaders.authorization;    
-          reqHeaders.authorization = this.insertKey(hs, this.missingVal_HS, consumer_key, true);// set key in AHS
+          var ah = options[pref + 'AH'];        // ah (of some prefix)
+          options.[pref + 'AH'] = this.insertKey(ah, this.missingVal_HS, consumer_key, true);// set key in AHS
 
    };
+
    twtOAuthServer.prototype.insertKey = function( insertString, missingVal, value, ahs){
       var str = insertString; 
       var len = missingVal.marker.length - missingVal.offset; // calcualte 
@@ -191,20 +196,26 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
       return str; 
    }
 
-   twtOAuthServer.prototype.insertSignature = function(vault, reqHeaders, options){ // creates signature and 
+   twtOAuthServer.prototype.insertSignature = function(vault, options, pref){ // creates signature and 
                                                                          // inserts it
                                                                          // into Authorization header string.
       var HmacSha1 = new hmacSha1('base64');                             // Create new hmac function
       var signingKey = percentEncode(vault.consumer_secret) + "&";  // Prepare consumer_secret
       // var oauth_token_secret for when we accuire it
-      var  sbs = options.legSBS;                                    // gets SBS
+      var sbs = options[pref + 'SBS'];                             // get SBS
+      var ah = options[pref + 'AH'];                               // get ah
       var signature = HmacSha1.digest(signingKey, sbs);             // calculates oauth_signature
 
-      reqHeaders.authorization = this.insertKey(reqHeaders.authorization, this.missingVal_HS, signature, true); 
+      options[pref + 'AH'] = this.insertKey(ah, this.missingVal_HS, signature, true); 
                                                                          // inserts signature into AHS
       console.log(" SIGNATURE: " + signature);
-      console.log(" AHS: " + reqHeaders.authorization); 
+      console.log(" AHS: " + options[pref + 'AH']); 
    };
+
+   twtOAuthServer.prototype.setAuthorizationHeader = function(options, pref){ // sets appropriate AH into request
+                                                                              // options
+      options.headers.authorization = options[pref + 'AH'];
+   }
 
    twtOAuthServer.prototype.send = function(options){
         
