@@ -35,11 +35,16 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
          'accept-language': "",
          'content-length': '0' // must be zero when method is POST with no body
       }  
-      var oauth_options = {  // options for 3-leg oauth requests  
-        legSBS:'',           // signature base string 
-        legAH: ''            
-      } 
-      var options = Object.create(oauth_options)
+
+      var api_options = {      // options used for api calls 
+        apiSBS: ''
+      }
+
+      var oauth_options = Object.create(api_options) // options for 3-leg oauth requests  
+      oauth_options.legSBS = '',                     // signature base string 
+      oauth_options.legAH = ''
+      
+      var options = Object.create(oauth_options)     // http server request options
       options.host = "",
       options.path = "",
       options.method = "",
@@ -60,7 +65,8 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
       this.init =  function init(){          // Encompases server logic
          this.setUserParams(args, vault);    // Params needed for this lib to work
          this.getOptions(reqHeaders);        // Options sent in query portion of client request url and headers
-
+         this.setOptions(vault, reqHeaders, options);        // sets options used for twitter request
+         
          this.sendRequest(vault, reqHeaders, options); // inserts consumer_key into SBS and AHS
       //   this.insertSignature(vault,reqHeaders);
       //   this.setOptions(options, vault);           // Options used to set request to twitter api
@@ -150,7 +156,6 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
        });
 
        this.request.on('end', function(){     
-              this.setOptions(vault, reqHeaders, options);        // sets options used for twitter request
               this.insertConsumerKey(vault, reqHeaders, options); // inserts consumer_key into SBS and AHS      
               this.insertSignature(vault, reqHeaders, options);    // inserts signature into AHS
               this.send(options);
