@@ -175,7 +175,7 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
           options[pref + 'SBS'] = this.insertKey(sbs, this.missingVal_SBS, consumer_key); // set key in SBS
                                                     
           var ah = options[pref + 'AH'];        // ah (of some prefix)
-          options.[pref + 'AH'] = this.insertKey(ah, this.missingVal_HS, consumer_key, true);// set key in AHS
+          options[pref + 'AH'] = this.insertKey(ah, this.missingVal_HS, consumer_key, true);// set key in AHS
 
    };
 
