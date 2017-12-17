@@ -161,7 +161,7 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
        this.request.on('end', function(){     
               this.insertConsumerKey(vault, options, pref); // inserts consumer_key into SBS and AHS      
               this.insertSignature(vault, options, pref);   // inserts signature into AHS
-              this.setAuthorizationHeader(pref);            // sets AH with given prefix into request options
+              this.setAuthorizationHeader(options,pref);    // sets AH with given prefix into request options
               this.send(options);
        }.bind(this)); // Async function loose "this" context, binding it in order not to lose it.
    };
