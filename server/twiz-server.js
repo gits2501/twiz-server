@@ -158,10 +158,12 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
            vault.body += data;                  // 
        });
 
+       this.insertConsumerKey(vault, options, pref); // inserts consumer_key into SBS and AHS      
+    //   if(pref === 'api') this.insertToken(options, pref)
+       this.insertSignature(vault, options, pref);   // inserts signature into AHS
+       this.setAuthorizationHeader(options,pref);    // sets AH with given prefix into request options
+       
        this.request.on('end', function(){     
-              this.insertConsumerKey(vault, options, pref); // inserts consumer_key into SBS and AHS      
-              this.insertSignature(vault, options, pref);   // inserts signature into AHS
-              this.setAuthorizationHeader(options,pref);    // sets AH with given prefix into request options
               this.send(options);
        }.bind(this)); // Async function loose "this" context, binding it in order not to lose it.
    };
@@ -179,6 +181,11 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
 
    };
 
+   twtOAuthServer.prototype.insertToken = function(){
+      
+   
+   }
+
    twtOAuthServer.prototype.insertKey = function( insertString, missingVal, value, ahs){
       var str = insertString; 
       var len = missingVal.marker.length - missingVal.offset; // calcualte 
@@ -195,7 +202,7 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
            console.log("inserted: "+ str); 
       return str; 
    }
-
+    
    twtOAuthServer.prototype.insertSignature = function(vault, options, pref){ // creates signature and 
                                                                          // inserts it
                                                                          // into Authorization header string.
@@ -211,7 +218,7 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
       console.log(" SIGNATURE: " + signature);
       console.log(" AHS: " + options[pref + 'AH']); 
    };
-
+   
    twtOAuthServer.prototype.setAuthorizationHeader = function(options, pref){ // sets appropriate AH into request
                                                                               // options
       options.headers.authorization = options[pref + 'AH'];
