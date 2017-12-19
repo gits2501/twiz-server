@@ -22,30 +22,79 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
       this.request;  // request stream
       this.responce; // responce stream 
 
-      var vault = {  // sensitive data in private var
-        "consumer_key": "",
+      var vault = {           // sensitive data in private var
+        "consumer_key": "",   // app's consumer key
         "consumer_secret": "",
-        "cert": "",
-        "key": ""
+        "cert": "",           // certificate (can be selfsigned)
+        "key": ""             // private key (used for https encription)
       }
       
-      var reqHeaders = {       // holds headers of a request
+      var reqHeaders = {      // holds headers of a request
          'accept': "",
          'authorization': "",
          'accept-language': "",
          'content-length': '0' // must be zero when method is POST with no body
       }  
+     
 
-      var api_options = {      // options used for api calls 
-        apiSBS: '',
-        apiAH: ''          
-      }
+      var optionUtils = {
+
+        missingVal_SBS:{
+          consumer_key: 'consumer_key',// Name of consumer key as it stands in OAuth (for SBS), without 'oauth' 
+                                       // prefix
+          signature: 'signature',      // Name of sugnature OAuth param for SBS
+          token: 'token',              // Name of access token param for SBS string. Used for inserting token val
+          marker: percentEncode("=&"), // "%3D%26" missing value marker for signature base string
+          offset: 3                    // Esentialy length of percent encoded "&", we place missing between "="
+                                       // and "&" 
+        },
+
+        missingVal_AHS: { 
+          //signature:'signature'            
+          marker: "=\"\"",             // ="" - missing value marker for authorization header string (AHS) 
+          offset: 1                   
+        },
+
+         SBS_AHS_insert: function(pref, key, value){
+            var sbs = this[pref + 'SBS'];       // sbs (of some prefix)
+            this[pref + 'SBS'] = this.insertKey(sbs, this.missingVal_SBS, key, value); // set key in SBS
+          
+            // key and value are like in those for SBS                                         
+            var ahs = this[pref + 'AH'];        // ah (of some prefix)
+            this[pref + 'AH'] = this.insertKey(ahs, this.missingVal_AH, key , value, true);// set key in AHS
+
+         },
+     
+         insertKey: function(insertString, missingVal, keyName, keyValue, ah){
+            var str = insertString; 
+            var len = (keyName.length + missingVal.marker.length) - missingVal.offset;// calcualte idx from where                                                                                      // we insert the value
+            var idx = str.indexOf(keyName);          // take idx of key we search for  
+            // console.log("marker: "+missingVal.marker, "consumer_key: "+ value, "idx: "+idx, "len: "+len) 
+            var front = str.slice(0, idx + len); // taking first part 
+            var end = str.slice(idx + len )      // taking second part 
+            // console.log("front: " + front)
+            keyValue =  ah ? percentEncode(keyValue) : percentEncode(percentEncode(keyValue)); 
+                                                                                   // single encoding if 
+                                                                                   // insertString is AHS
+            str = front + keyValue + end;
+                                       // Since keys are percent encoded twice (by twitter docs), here we do it 
+                                       // also
+            console.log("inserted: "+ str); 
+            return str; 
+        }
+
+      } 
+
+      var api_options = Object.create(optionUtils)   // options used for api calls (linked to optionUtils)
+      api.options.apiSBS = '';                       // SBS for api calls
+      api_options.apiAH = '';           
+      
 
       var oauth_options = Object.create(api_options) // options for 3-leg oauth requests  
       oauth_options.legSBS = '',                     // signature base string 
       oauth_options.legAH = ''                       // authorization header string
       
-      var options = Object.create(oauth_options)     // http server request options
+      var options = Object.create(oauth_options)     // HTTP server request options
       options.host = "",
       options.path = "",
       options.method = "",
@@ -53,16 +102,7 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
       options.key = "",
       options.cert = ""
 
-      this.missingVal_SBS = {
-        marker: percentEncode("=&"),   // "%3D%26" missing value marker for signature base string
-        offset: 3                      // Esentialy length of percent encoded "&", we place missing between "="
-                                       // and "&" 
-      }
-      this.missingVal_HS = {             
-        marker: "\"\"",                // "" missing value marker for authorization header string (AHS) 
-        offset: 1                      //
-      }
-
+   
       this.init =  function init(){          // Encompases server logic
          this.setUserParams(args, vault);    // Params needed for this lib to work
          this.getOptions(reqHeaders);        // Options sent in query portion of client request url and headers
@@ -119,7 +159,7 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
    twtOAuthServer.prototype.getRequestHeaders = function(reqHeaders){ // takes headers from request if header
                                                                       // is supported ( is in reqHeaders)
       var sentHeaders = this.request.headers // headers from request stream
-      for(var name in reqHeaders){  // omiting content-length, since it must be 0, for POST with no body
+      for(var name in reqHeaders){           // omiting content-length, since it must be 0, for POST with no body
          if(sentHeaders.hasOwnProperty(name) && name !== 'content-length') reqHeaders[name] = sentHeaders[name];
       }
       console.log("reqHeaders: " , reqHeaders);
@@ -171,49 +211,33 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
    twtOAuthServer.prototype.insertConsumerKey = function(vault, options, pref){// insert missing consumer key in 
                                                                                // SBS and AHS
 
-          var consumer_key = vault.consumer_key; // get consumer key from vault 
+      var consumer_key = this.missingVal_SBS.consumer_key; // get consumer key name (as it stands in OAuth Specs)
+      var value = vault.consumer_key;                   // Get value of consumer key from vault 
 
-          var sbs = options[pref + 'SBS'];       // sbs (of some prefix)
-          options[pref + 'SBS'] = this.insertKey(sbs, this.missingVal_SBS, consumer_key); // set key in SBS
-                                                    
-          var ah = options[pref + 'AH'];        // ah (of some prefix)
-          options[pref + 'AH'] = this.insertKey(ah, this.missingVal_HS, consumer_key, true);// set key in AHS
-
+      options.SBS_AHS_insert(pref, consumer_key, value) // insert consumer key to SBS and AHS
    };
 
-   twtOAuthServer.prototype.insertToken = function(){
-      
-   
-   }
+   twtOAuthServer.prototype.insertToken = function(tokenObj, options, pref){
+      var tokename = this.missingVal_SBS.token;       // take the key name
+      var value = tokenObj.oauth_token;               // take the key value
 
-   twtOAuthServer.prototype.insertKey = function( insertString, missingVal, value, ahs){
-      var str = insertString; 
-      var len = missingVal.marker.length - missingVal.offset; // calcualte 
-      var idx = str.indexOf(missingVal.marker);               // take idx of empty value marker for SBS 
-         // console.log("marker: "+missingVal.marker, "consumer_key: "+ value, "idx: "+idx, "len: "+len) 
-      var front = str.slice(0, idx + len); // taking first part 
-      var end = str.slice(idx + len )      // taking second part 
-         // console.log("front: " + front)
-      value =  ahs ? percentEncode(value) : percentEncode(percentEncode(value)); // single encoding if 
-                                                                                 // insertString is AHS
-      str = front + value + end;
-                                       // Since keys are percent encoded twice (by twitter docs), here we do it 
-                                       // also
-           console.log("inserted: "+ str); 
-      return str; 
+  
+      options.SBS_AHS_insert(pref, token, value); // insert token in SBS and AHS  
    }
-    
+   
+      
    twtOAuthServer.prototype.insertSignature = function(vault, options, pref){ // creates signature and 
                                                                          // inserts it
-                                                                         // into Authorization header string.
+                                                                         // into Authorization Header string
       var HmacSha1 = new hmacSha1('base64');                             // Create new hmac function
       var signingKey = percentEncode(vault.consumer_secret) + "&";  // Prepare consumer_secret
       // var oauth_token_secret for when we accuire it
-      var sbs = options[pref + 'SBS'];                             // get SBS
-      var ah = options[pref + 'AH'];                               // get ah
+      var sbs = options[pref + 'SBS'];                              // get SBS
+      var ahs = options[pref + 'AH'];                                // get ah
       var signature = HmacSha1.digest(signingKey, sbs);             // calculates oauth_signature
 
-      options[pref + 'AH'] = this.insertKey(ah, this.missingVal_HS, signature, true); 
+      var key = this.missingVal_AH.signature; // take key name 
+      options[pref + 'AH'] = options.insertKey(ahs, options.missingVal_AH, key, signature, true); 
                                                                          // inserts signature into AHS
       console.log(" SIGNATURE: " + signature);
       console.log(" AHS: " + options[pref + 'AH']); 
