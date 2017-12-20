@@ -38,11 +38,12 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
      
 
       var optionUtils = {
+        token: '',          // ONLY for testing
+        token_secret:'',    // ONLY for testing
 
         missingVal_SBS:{
           consumer_key: 'consumer_key',// Name of consumer key as it stands in OAuth (for SBS), without 'oauth' 
-                                       // prefix
-          signature: 'signature',      // Name of sugnature OAuth param for SBS
+                                       // prefix. Used of inserting consumer_key value
           token: 'token',              // Name of access token param for SBS string. Used for inserting token val
           marker: percentEncode("=&"), // "%3D%26" missing value marker for signature base string
           offset: 3                    // Esentialy length of percent encoded "&", we place missing between "="
@@ -50,7 +51,7 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
         },
 
         missingVal_AHS: { 
-          //signature:'signature'            
+          signature:'signature',            
           marker: "=\"\"",             // ="" - missing value marker for authorization header string (AHS) 
           offset: 1                   
         },
@@ -61,7 +62,7 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
           
             // key and value are like in those for SBS                                         
             var ahs = this[pref + 'AH'];        // ah (of some prefix)
-            this[pref + 'AH'] = this.insertKey(ahs, this.missingVal_AH, key , value, true);// set key in AHS
+            this[pref + 'AH'] = this.insertKey(ahs, this.missingVal_AHS, key , value, true);// set key in AHS
 
          },
      
@@ -86,7 +87,7 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
       } 
 
       var api_options = Object.create(optionUtils)   // options used for api calls (linked to optionUtils)
-      api.options.apiSBS = '';                       // SBS for api calls
+      api_options.apiSBS = '';                       // SBS for api calls
       api_options.apiAH = '';           
       
 
@@ -106,8 +107,9 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
       this.init =  function init(){          // Encompases server logic
          this.setUserParams(args, vault);    // Params needed for this lib to work
          this.getOptions(reqHeaders);        // Options sent in query portion of client request url and headers
-         this.setOptions(vault, reqHeaders, options);        // sets options used for twitter request
-         this.oauth('leg');                  // sends to 3-leg authentication       
+         this.setOptions(vault, reqHeaders, options);    // sets options used for twitter request
+         if(/1.1/.test(options.path)) this.oauth('api')  // send to twitter api
+         else this.oauth('leg')                          // send to 3-leg authentication       
       //   this.insertSignature(vault,reqHeaders);
       //   this.setOptions(options, vault);           // Options used to set request to twitter api
       }
@@ -199,30 +201,33 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
        });
 
        this.insertConsumerKey(vault, options, pref); // inserts consumer_key into SBS and AHS      
-    //   if(pref === 'api') this.insertToken(options, pref)
+       if(pref === 'api'){
+         this.insertToken({},options, pref) // first parame mpty obj (for testing  will CHANGE)
+         
+       }
        this.insertSignature(vault, options, pref);   // inserts signature into AHS
        this.setAuthorizationHeader(options,pref);    // sets AH with given prefix into request options
        
        this.request.on('end', function(){     
-              this.send(options);
+              this.send(options, pref, vault);
        }.bind(this)); // Async function loose "this" context, binding it in order not to lose it.
    };
   
    twtOAuthServer.prototype.insertConsumerKey = function(vault, options, pref){// insert missing consumer key in 
                                                                                // SBS and AHS
 
-      var consumer_key = this.missingVal_SBS.consumer_key; // get consumer key name (as it stands in OAuth Specs)
+      var consumer_key = options.missingVal_SBS.consumer_key;// get consumer key name (as it stands in OAuth Spec
       var value = vault.consumer_key;                   // Get value of consumer key from vault 
 
       options.SBS_AHS_insert(pref, consumer_key, value) // insert consumer key to SBS and AHS
    };
 
    twtOAuthServer.prototype.insertToken = function(tokenObj, options, pref){
-      var tokename = this.missingVal_SBS.token;       // take the key name
-      var value = tokenObj.oauth_token;               // take the key value
+      var tokenName = options.missingVal_SBS.token;       // take the key name
+      var tokenValue = options.token;                         // take the key value (temporarily its in options)
 
-  
-      options.SBS_AHS_insert(pref, token, value); // insert token in SBS and AHS  
+      console.log('missingVal_SBS.token: ', options.missingVal_SBS.token) 
+      options.SBS_AHS_insert(pref, tokenName, tokenValue); // insert token in SBS and AHS  
    }
    
       
@@ -230,25 +235,28 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
                                                                          // inserts it
                                                                          // into Authorization Header string
       var HmacSha1 = new hmacSha1('base64');                             // Create new hmac function
-      var signingKey = percentEncode(vault.consumer_secret) + "&";  // Prepare consumer_secret
-      // var oauth_token_secret for when we accuire it
+      var signingKey = percentEncode(vault.consumer_secret) + "&";       // Prepare consumer_secret
+
+      if(pref === 'api') signingKey = signingKey + percentEncode(options.token_secret); // on api calls, add t_s 
+
       var sbs = options[pref + 'SBS'];                              // get SBS
-      var ahs = options[pref + 'AH'];                                // get ah
       var signature = HmacSha1.digest(signingKey, sbs);             // calculates oauth_signature
 
-      var key = this.missingVal_AH.signature; // take key name 
-      options[pref + 'AH'] = options.insertKey(ahs, options.missingVal_AH, key, signature, true); 
+      
+      var ahs = options[pref + 'AH'];                                // get ah
+      var key = options.missingVal_AHS.signature; // take key name 
+      options[pref + 'AH'] = options.insertKey(ahs, options.missingVal_AHS, key, signature, true); 
                                                                          // inserts signature into AHS
       console.log(" SIGNATURE: " + signature);
       console.log(" AHS: " + options[pref + 'AH']); 
    };
    
-   twtOAuthServer.prototype.setAuthorizationHeader = function(options, pref){ // sets appropriate AH into request
-                                                                              // options
+   twtOAuthServer.prototype.setAuthorizationHeader = function(options, pref){ // sets appropriate AH into
+                                                                                     // request options
       options.headers.authorization = options[pref + 'AH'];
    }
 
-   twtOAuthServer.prototype.send = function(options){
+   twtOAuthServer.prototype.send = function(options, pref, vault){
         
         var proxyRequest = https.request(options, function(twtResponce){
  
@@ -263,6 +271,7 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
                      console.log("twt responce error: ", err)
               })
         }.bind(this))
+        if(pref === 'api' && vault.body) prexyRequest.write(vault.body); // on api request send body if exists
         proxyRequest.on('error', function(err){
             console.log("request to twtiter error: ", err);
         })
