@@ -88,20 +88,26 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
 
       var api_options = Object.create(optionUtils)   // options used for api calls (linked to optionUtils)
       api_options.apiSBS = '';                       // SBS for api calls
-      api_options.apiAH = '';           
+      api_options.apiAH = '';                        // Ah for api calls
+      api_options.apiHost = '';
+      api_options.apiPath = '';
+      api_options.apiMethod = '';          
       
 
       var oauth_options = Object.create(api_options) // options for 3-leg oauth requests  
-      oauth_options.legSBS = '',                     // signature base string 
-      oauth_options.legAH = ''                       // authorization header string
+      oauth_options.legSBS = '';                     // signature base string 
+      oauth_options.legAH = '';                       // authorization header string
+      oauth_options.legHost = '';
+      oauth_options.legPath = '';
+      oauth_options.legMethod = '';
       
       var options = Object.create(oauth_options)     // HTTP server request options
-      options.host = "",
-      options.path = "",
-      options.method = "",
-      options.headers = "",
-      options.key = "",
-      options.cert = ""
+      options.host = "";
+      options.path = "";
+      options.method = "";
+      options.headers = "";
+      options.key = "";
+      options.cert = "";
 
    
       this.init =  function init(){          // Encompases server logic
@@ -172,9 +178,9 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
    };
  
    twtOAuthServer.prototype.setOptions = function(vault, reqHeaders, options){ // Uses params sent in url to set
-                                                                               // options for request to twiter
-                                                                               // and options that are used to 
-                                                                               // calculate signature (like SBS)
+                                                                               // them along options' prototype
+                                                                               // chain if those
+                                                                               // param names exists in prototype 
       for(var name in options){
          if(this.sentOptions[name])
          options[name] = this.sentOptions[name];  // If sentOptions has that 
@@ -201,12 +207,11 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
        });
 
        this.insertConsumerKey(vault, options, pref); // inserts consumer_key into SBS and AHS      
-       if(pref === 'api'){
-         this.insertToken({},options, pref) // first parame mpty obj (for testing  will CHANGE)
-         
-       }
+
+       if(pref === 'api') this.insertToken({},options, pref) // first parame mpty obj (for testing  will CHANGE)
+       
        this.insertSignature(vault, options, pref);   // inserts signature into AHS
-       this.setAuthorizationHeader(options,pref);    // sets AH with given prefix into request options
+       this.finalizeOptions(options, pref);          // picks final options which are used in request
        
        this.request.on('end', function(){     
               this.send(options, pref, vault);
@@ -217,7 +222,7 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
                                                                                // SBS and AHS
 
       var consumer_key = options.missingVal_SBS.consumer_key;// get consumer key name (as it stands in OAuth Spec
-      var value = vault.consumer_key;                   // Get value of consumer key from vault 
+      var value = vault.consumer_key;                        // Get value of consumer key from vault 
 
       options.SBS_AHS_insert(pref, consumer_key, value) // insert consumer key to SBS and AHS
    };
@@ -251,11 +256,14 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
       console.log(" AHS: " + options[pref + 'AH']); 
    };
    
-   twtOAuthServer.prototype.setAuthorizationHeader = function(options, pref){ // sets appropriate AH into
-                                                                                     // request options
-      options.headers.authorization = options[pref + 'AH'];
-   }
+   twtOAuthServer.prototype.finalizeOptions = function(options, pref){
+      options.host   = options[pref + 'Host'];
+      options.path   = options[pref + 'Path'];
+      options.method = options[pref + 'Method'];
 
+      options.headers.authorization = options[pref + 'AH']; // sets authorization header 
+   }
+   
    twtOAuthServer.prototype.send = function(options, pref, vault){
         
         var proxyRequest = https.request(options, function(twtResponce){
