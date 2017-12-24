@@ -256,10 +256,10 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
       console.log(" AHS: " + options[pref + 'AH']); 
    };
    
-   twtOAuthServer.prototype.finalizeOptions = function(options, pref){
-      options.host   // = options[pref + 'Host']; when you start sending pref+ Host in  queryString
-      options.path   //  = options[pref + 'Path'];
-      options.method //= options[pref + 'Method'];
+   twtOAuthServer.prototype.finalizeOptions = function(options, pref){// actual option are one from 'leg' or 'api'
+      options.host    = options[pref + 'Host']; // when you start sending pref+ Host in  queryString
+      options.path    = options[pref + 'Path'];
+      options.method  = options[pref + 'Method'];
 
       options.headers.authorization = options[pref + 'AH']; // sets authorization header 
    }
