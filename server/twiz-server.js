@@ -115,7 +115,7 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
          this.setUserParams(args, vault);    // Params needed for this lib to work
          this.getOptions(reqHeaders);        // Options sent in query portion of client request url and headers
          this.setOptions(vault, reqHeaders, options);    // sets options used for twitter request
-         if(userTokens.token && userToken.token_secret) this.oauth('api', userTokens)  // send to twitter api
+         if(userTokens.token && userTokens.token_secret) this.oauth('api', userTokens)  // send to twitter api
          else this.oauth('leg')                          // send to 3-leg authentication       
       //   this.insertSignature(vault,reqHeaders);
       //   this.setOptions(options, vault);           // Options used to set request to twitter api
