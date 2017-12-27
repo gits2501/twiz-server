@@ -110,16 +110,18 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
       options.cert = "";
 
    
-      this.init =  function init(){          // Encompases server logic
+      this.init =  function init(userTokens){ 
+                                             // Encompases server logic
          this.setUserParams(args, vault);    // Params needed for this lib to work
          this.getOptions(reqHeaders);        // Options sent in query portion of client request url and headers
          this.setOptions(vault, reqHeaders, options);    // sets options used for twitter request
-         if(/1.1/.test(options.path)) this.oauth('api')  // send to twitter api
+         if(userTokens.token && userToken.token_secret) this.oauth('api', userTokens)  // send to twitter api
          else this.oauth('leg')                          // send to 3-leg authentication       
       //   this.insertSignature(vault,reqHeaders);
       //   this.setOptions(options, vault);           // Options used to set request to twitter api
       }
-      this.oauth = function (pref){              // joins the 
+      this.oauth = function (pref, userTokens){              // joins the
+          vault.userTokens = userTokens;         // set them  in vault 
           this.sendRequest(vault, options, pref) 
       }
       
@@ -190,9 +192,9 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
                                                   // It doesnt have hasOwnProperty(..)
       }
 
-      options.headers = reqHeaders // sets headers
-      options.cert = vault.cert;   // sets certificate (https) 
-      options.key = vault.key;     // sets private_key used for https encription
+      options.headers = reqHeaders    // sets headers
+      options.cert    = vault.cert;   // sets certificate (https) 
+      options.key     = vault.key;    // sets private_key used for https encription
       
       console.log(" OPTIONS: ",options);
    };
@@ -208,7 +210,7 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
 
        this.insertConsumerKey(vault, options, pref); // inserts consumer_key into SBS and AHS      
 
-       if(pref === 'api') this.insertToken({},options, pref) // first parame mpty obj (for testing  will CHANGE)
+       if(pref === 'api') this.insertToken(vault, options, pref)// insert user sensive token 
        
        this.insertSignature(vault, options, pref);   // inserts signature into AHS
        this.finalizeOptions(options, pref);          // picks final options which are used in request
@@ -224,12 +226,12 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
       var consumer_key = options.missingVal_SBS.consumer_key;// get consumer key name (as it stands in OAuth Spec
       var value = vault.consumer_key;                        // Get value of consumer key from vault 
 
-      options.SBS_AHS_insert(pref, consumer_key, value) // insert consumer key to SBS and AHS
+      options.SBS_AHS_insert(pref, consumer_key, value)   // insert consumer key to SBS and AHS
    };
 
-   twtOAuthServer.prototype.insertToken = function(tokenObj, options, pref){
+   twtOAuthServer.prototype.insertToken = function(vault, options, pref){
       var tokenName = options.missingVal_SBS.token;       // take the key name
-      var tokenValue = options.token;                         // take the key value (temporarily its in options)
+      var tokenValue = vault.userTokens.token;            // take the key value 
 
       console.log('missingVal_SBS.token: ', options.missingVal_SBS.token) 
       options.SBS_AHS_insert(pref, tokenName, tokenValue); // insert token in SBS and AHS  
@@ -242,7 +244,8 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
       var HmacSha1 = new hmacSha1('base64');                             // Create new hmac function
       var signingKey = percentEncode(vault.consumer_secret) + "&";       // Prepare consumer_secret
 
-      if(pref === 'api') signingKey = signingKey + percentEncode(options.token_secret); // on api calls, add t_s 
+      if(pref === 'api') signingKey = signingKey + percentEncode(vault.userTokens.token_secret); // on api calls
+                                                                                              //, add token_sec 
 
       var sbs = options[pref + 'SBS'];                              // get SBS
       var signature = HmacSha1.digest(signingKey, sbs);             // calculates oauth_signature
