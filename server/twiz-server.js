@@ -1,5 +1,6 @@
-var https = require('https');
-var hmacSha1 = require('hmac_sha1') // require('hmac_sha1');
+var https        = require('https');
+var hmacSha1     = require('hmac_sha1') // require('hmac_sha1');
+var EventEmitter = require('events').EventEmitter;
 var net; // client http lib
 var url = require('url');
 var HmacSha1 = new hmacSha1();
@@ -19,6 +20,7 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
    }
    
    function twtOAuthServer (args){
+
       this.request;  // request stream
       this.responce; // responce stream 
 
@@ -35,8 +37,7 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
          'accept-language': "",
          'content-length': '0' // must be zero when method is POST with no body
       }  
-     
-
+      
       var optionUtils = {
         token: '',          // ONLY for testing
         token_secret:'',    // ONLY for testing
@@ -108,25 +109,67 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
       options.headers = "";
       options.key = "";
       options.cert = "";
-
+     
+      this.eventNames = {                            // Names of events that are emited
+         insertUserToken: 'insertUserToken',
+         tokenFound: 'tokenFound'   
+      }
    
-      this.init =  function init(userTokens){ 
+      this.init = function init(req, resp, next){ 
                                              // Encompases server logic
+         args.request  = args.request || req;
+         args.responce = args.respoce || resp;
+         args.next     = next ;
+
          this.setUserParams(args, vault);    // Params needed for this lib to work
          this.getOptions(reqHeaders);        // Options sent in query portion of client request url and headers
          this.setOptions(vault, reqHeaders, options);    // sets options used for twitter request
-         if(userTokens.token && userTokens.token_secret) this.oauth('api', userTokens)  // send to twitter api
-         else this.oauth('leg')                          // send to 3-leg authentication       
-      //   this.insertSignature(vault,reqHeaders);
-      //   this.setOptions(options, vault);           // Options used to set request to twitter api
+
+      // this.setAppContext();
+         this.onNewListeners(options);              
       }
-      this.oauth = function (pref, userTokens){              // joins the
-          vault.userTokens = userTokens;         // set them  in vault 
-          this.sendRequest(vault, options, pref) 
+
+      this.oauth = function (tokenObj){              // joins the
+          var pref = 'leg';
+
+          if(this.hasUserTokens(tokenObj)) { 
+             vault.userTokens = tokenObj;        // Put token object in vault
+             pref = 'api';                       // Since we have user token, we can go for twitter api call
+          }                        
+
+          this.sendRequest(vault, options, pref); 
       }
       
    };
+   
+   twtOAuthServer.prototype = Object.create(EventEmitter.prototype) // link EE prototype
+   
+   twtOAuthServer.prototype.onNewListeners = function(options){
+     var path  = options.legPath; // get oauth leg 
+     
+     
+     this.appContext.on('newListener', function(eventName, listener){
+     
+          switch(eventName){ 
+             case this.eventNames.insertUserToken:          // pass verifyToken() here as arg
+                switch(path){
+                   case 'request_token':
+                     this.app.emit(this.eventNames.insertUserToken, this.oauth.bind(this)) 
+                   break;
+                }
+             break;
+             case this.eventNames.tokenFound:  
+               this.app.emit(this.eventNames.tokenFound) // second arg - promise, when resolved has usr acc token
+             break:
+         
+          }      
+     })
+   }
 
+   twtOAuthServer.prototype.hasUserTokens = function(tokens){
+      if(tokens.oauth_token && tokens.oauth_token_secret) return true;
+   }
+   
    twtOAuthServer.prototype.setUserParams = function(args, vault){
 
       for(var name in args){
@@ -137,6 +180,9 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
             break;
             case "responce":
               this.responce = args[name];   // set provided responce stream
+            break;
+            case "next":
+              this.next = args[name];
             break;
             case "consumer_key":            // confidential app data
               vault.consumer_key = args[name];
@@ -159,6 +205,21 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
      
 
    };
+
+   twtOAuthServer.prototype.setAppContext = function(){ // check the framework
+      this.app;       // Can be reference to 'this.req.app' when in Express, or 'this' when in Connect
+       
+      if(this.request.app){  // check express context
+         this.app = this.request.app; 
+         
+      }
+      else if(this.next){              // For connect context just check if there is 'next' function
+         EventEmitter.init.call(this); // Call emitter constructor on this object
+         this.app = this;              // app is 'this', since we are linked to EventEmitter 
+                  
+      }
+   };
+
    twtOAuthServer.prototype.getOptions = function(reqHeaders){ // gets params from query portion of request url
       this.sentOptions = url.parse(this.request.url, true).query // parses options sent in client request url
       console.log('sentOptions: ', this.sentOptions);
@@ -230,7 +291,7 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
    };
 
    twtOAuthServer.prototype.insertToken = function(vault, options, pref){
-      var tokenName = options.missingVal_SBS.token;       // take the key name
+      var tokenName  = options.missingVal_SBS.token;       // take the key name
       var tokenValue = vault.userTokens.token;            // take the key value 
 
       console.log('missingVal_SBS.token: ', options.missingVal_SBS.token) 
@@ -269,20 +330,26 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
    
    twtOAuthServer.prototype.send = function(options, pref, vault){
         
-        var proxyRequest = https.request(options, function(twtResponce){
+        var proxyRequest = https.request(options, function(twtResponse){
  
-              twtResponce.setEncoding('utf8');
-              twtResponce.pipe(this.responce); // pipe the twitter responce to client responce;
+              twtResponse.setEncoding('utf8');
+              twtResponse.pipe(this.responce); // pipe the twitter responce to client responce;
 
-              twtResponce.on('data', function(data){
+              twtResponse.on('data', function(data){
                 console.log(" twitter responded: ", data);
               })
+              
+              twtResponse.on('end', function(){
 
-              twtResponce.on('error', function(err){
+              })
+              
+              twtResponse.on('error', function(err){
                      console.log("twt responce error: ", err)
               })
         }.bind(this))
+
         if(pref === 'api' && vault.body) prexyRequest.write(vault.body); // on api request send body if exists
+
         proxyRequest.on('error', function(err){
             console.log("request to twtiter error: ", err);
         })
@@ -312,7 +379,7 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
             case "consumer_secret":
                if(!vault[name]) throw new Error(this.messages.consumerSecretNotSet);
             break;
-         
+            //for now we dont check for this.next (for compatibility with other frameworks)
          }
       }
    }
