@@ -153,10 +153,10 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
      console.log('newListeners')
      console.log('currentLeg: ', currentLeg)
       switch(currentLeg){
-        case 'request_token': console.log('insertUserToken')
+        case '/oauth/request_token': console.log('insertUserToken')
           this.app.emit(this.eventNames.insertUserToken, this.oauth.bind(this)) 
         break;
-        case 'access_token':  console.log('tokenFound')
+        case '/oauth/access_token':  console.log('tokenFound')
           this.oauth();   // just start access_token search since it wasnt passed on request_token leg   
         break;
       }
@@ -519,10 +519,16 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
    }
 
    module.exports =  function(args){
-      var r = new twtOAuthServer(args); 
+     return function(){
       
-      return phantomHead = {
-          init : r.init.bind(r)
-      } 
+        phantomHead = {
+           init :function(){
+               var r = new twtOAuthServer(args); 
+               r.init.apply(r, arguments);
+           }
+        }
+         
+        return phantomHead.init
+     } 
    }
 
