@@ -130,6 +130,7 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
 
          this.setAppContext();
          this.currentLeg = options.legPath    // Path names indicate in what oauth leg (step) we are 
+         console.log('before onNewListeners')
          this.onNewListeners(this.currentLeg);// set action on listeners we emit              
       }
 
@@ -149,9 +150,9 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
    
    twtOAuthServer.prototype = Object.create(EventEmitter.prototype) // link EE prototype
    twtOAuthServer.prototype.onNewListeners = function(currentLeg){
-     
+     console.log('newListeners')
      this.app.on('newListener', function(eventName, listener){
-          console.log('newListener') 
+          console.log('this app onNewListeners func called') 
           switch(eventName){ 
              case this.eventNames.insertUserToken:          // pass verifyToken() here as arg
                 switch(currentLeg){
