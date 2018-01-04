@@ -198,14 +198,15 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
    twtOAuthServer.prototype.isPreflight = function() {
     var preflight; console.log('Preflight: method:', this.request.method);
       if (this.request.method == "OPTIONS"){  // Both needs to be plased for PREFLIGHT
-       preflight = true;
-       console.log("preflight request with OPTIONS");
-       this.response.setHeader("Access-Control-Allow-Headers","content-type , authorization");
-       this.response.setHeader("Access-Control-Allow-Origin", "https://gits2501.github.io");
+        preflight = true;
+        console.log("preflight request with OPTIONS");
+        this.response.setHeader("Access-Control-Allow-Headers","content-type , authorization");
+        this.response.setHeader("Access-Control-Allow-Origin", "https://gits2501.github.io");
       }
       else{
-       this.response.setHeader("Access-Control-Allow-Origin","https://gits2501.github.io"); // Other (no preflight) can have just this.
-       this.response.setHeader("Content-Type", "application/json");
+        this.response.setHeader("Access-Control-Allow-Origin","https://gits2501.github.io"); // Other (no preflight) can have just this.
+        this.response.setHeader("Content-Type", "application/json");
+        return preflight;
       }
 
       console.log("URL source: " + this.request.url); console.log("url parsed:", url.parse(this.request.url, true).query)
