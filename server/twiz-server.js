@@ -135,7 +135,7 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
 
       this.oauth = function (tokenObj){           
           var pref = 'leg';                  // Prefix or preference var, picks 3-leg dance or twitter api call
- 
+          console.log('in oauth')
           if(tokenObj && this.hasUserToken(tokenObj)) { 
              vault.accessToken = tokenObj;    // Put token object in vault
              pref = 'api';                   // Since we have user token, we can go for twitter api call
@@ -155,7 +155,7 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
           switch(eventName){ 
              case this.eventNames.insertUserToken:          // pass verifyToken() here as arg
                 switch(currentLeg){
-                   case 'request_token': console.log()
+                   case 'request_token': console.log('insertUserToken')
                      this.app.emit(this.eventNames.insertUserToken, this.oauth.bind(this)) 
                    break;
                 }
