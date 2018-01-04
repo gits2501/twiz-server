@@ -123,7 +123,9 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
          args.next     = next ;
 
          this.setUserParams(args, vault);    // Params needed for this lib to work
+         console.log('before Preflight')
          if(this.isPreflight) return;        // on preflighted requests stop here
+         console.log('before getOptions');
          this.getOptions(reqHeaders);        // Options sent in query portion of client request url and headers
          this.setOptions(vault, reqHeaders, options);    // sets options used for twitter request
 
@@ -150,11 +152,11 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
    twtOAuthServer.prototype.onNewListeners = function(currentLeg){
      
      this.app.on('newListener', function(eventName, listener){
-     
+          console.log('newListener') 
           switch(eventName){ 
              case this.eventNames.insertUserToken:          // pass verifyToken() here as arg
                 switch(currentLeg){
-                   case 'request_token':
+                   case 'request_token': console.log()
                      this.app.emit(this.eventNames.insertUserToken, this.oauth.bind(this)) 
                    break;
                 }
@@ -266,7 +268,7 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
        
       if(this.request.app){  // check express context
          this.app = this.request.app; 
-         
+         console.log('express confirmed');
       }
       else if(this.next){              // For connect context just check if there is 'next' function
          EventEmitter.init.call(this); // Call emitter constructor on this object
