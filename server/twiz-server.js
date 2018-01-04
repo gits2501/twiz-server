@@ -115,11 +115,11 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
          tokenFound: 'tokenFound'   
       }
    
-      this.init = function init(req, resp, next){ 
+      this.init = function init(req, res, next){ 
          console.log("in INIT")
                                              // Encompases server logic
          args.request  = args.request || req;
-         args.response = args.response || resp;
+         args.response = args.response || res;
          args.next     = next ;
 
          this.setUserParams(args, vault);    // Params needed for this lib to work
@@ -234,7 +234,7 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
             case "request":
               this.request = args[name];    // set provided request stream
             break;
-            case "responce":
+            case "response":
               this.response = args[name];   // set provided responce stream
             break;
             case "next":
