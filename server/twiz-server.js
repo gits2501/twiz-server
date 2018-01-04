@@ -215,11 +215,12 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
       this.request.on('end', function(){ console.log("REQ ended")
          console.log("Sent BODY: "+ body)
          console.log("resp headers: " + this.response.headers) 
-      })
+      }.bind(this))
+      
       this.request.on('error', function(err){
         console.log("Error: "+ err);
         this.next(err)
-      }) 
+      }.bind(this)) 
       this.response.end();
 
    
