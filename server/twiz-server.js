@@ -170,11 +170,11 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
                 }
              break;
          
-          }      
-     })
-   }
+          })
+     }
+  }
 
-   twtOAuthServer.prototype.hasUserToken = function(tokenObj){
+  twtOAuthServer.prototype.hasUserToken = function(tokenObj){
       var error;
       var generalInfo =  this.messages.twiz + this.currentLeg + ' leg: ';
  
