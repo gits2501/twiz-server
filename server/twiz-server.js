@@ -170,9 +170,9 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
                 }
              break;
          
-          })
-     }
-  }
+          }
+     })
+  };
 
   twtOAuthServer.prototype.hasUserToken = function(tokenObj){
       var error;
