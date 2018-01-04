@@ -123,8 +123,7 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
          args.next     = next ;
 
          this.setUserParams(args, vault);    // Params needed for this lib to work
-         console.log('before Preflight')
-         if(this.isPreflight) return;        // on preflighted requests stop here
+         if(this.isPreflight()) return;        // on preflighted requests stop here
          console.log('before getOptions');
          this.getOptions(reqHeaders);        // Options sent in query portion of client request url and headers
          this.setOptions(vault, reqHeaders, options);    // sets options used for twitter request
