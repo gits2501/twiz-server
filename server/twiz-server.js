@@ -197,7 +197,7 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
       return true; // all tokens are present
    }
    twtOAuthServer.prototype.isPreflight = function() {
-    var preflight;
+    var preflight; console.log('Preflight: method:', this.request.method);
       if (this.request.method == "OPTIONS"){  // Both needs to be plased for PREFLIGHT
        preflight = true;
        console.log("preflight request with OPTIONS");
