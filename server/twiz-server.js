@@ -119,7 +119,7 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
          console.log("in INIT")
                                              // Encompases server logic
          args.request  = args.request || req;
-         args.responce = args.respoce || resp;
+         args.response = args.response || resp;
          args.next     = next ;
 
          this.setUserParams(args, vault);    // Params needed for this lib to work
