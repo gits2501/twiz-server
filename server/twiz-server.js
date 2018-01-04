@@ -151,28 +151,18 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
    twtOAuthServer.prototype = Object.create(EventEmitter.prototype) // link EE prototype
    twtOAuthServer.prototype.onNewListeners = function(currentLeg){
      console.log('newListeners')
-     this.app.on('newListener', function(eventName, listener){
-          console.log('this app onNewListeners func called') 
-          switch(eventName){ 
-             case this.eventNames.insertUserToken:          // pass verifyToken() here as arg
-                switch(currentLeg){
-                   case 'request_token': console.log('insertUserToken')
-                     this.app.emit(this.eventNames.insertUserToken, this.oauth.bind(this)) 
-                   break;
-                }
-             break;
-             case this.eventNames.tokenFound:
-                switch(currentLeg){
-                   case 'access_token':  
-                     this.oauth();   // start access_token search   
-                     // this.app.emit(this.eventNames.tokenFound) // second arg - promise, when resolved has usr 
-                   break;
-                }
-             break;
-         
-          }
-     })
-  };
+     
+      switch(currentLeg){
+        case 'request_token': console.log('insertUserToken')
+          this.app.emit(this.eventNames.insertUserToken, this.oauth.bind(this)) 
+        break;
+        case 'access_token':  console.log('tokenFound')
+          this.oauth();   // just start access_token search since it wasnt passed on request_token leg   
+        break;
+      }
+     
+   }
+  
 
   twtOAuthServer.prototype.hasUserToken = function(tokenObj){
       var error;
