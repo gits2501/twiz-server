@@ -134,7 +134,7 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
          this.onNewListeners(this.currentLeg);// set action on listeners we emit              
       }
 
-      this.oauth = function (tokenObj){           
+      this.oauth = function (tokenObj){         
           var pref = 'leg';                  // Prefix or preference var, picks 3-leg dance or twitter api call
           console.log('in oauth')
           if(tokenObj && this.hasUserToken(tokenObj)) { 
@@ -151,14 +151,15 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
    twtOAuthServer.prototype = Object.create(EventEmitter.prototype) // link EE prototype
    twtOAuthServer.prototype.onNewListeners = function(currentLeg){
      console.log('newListeners')
-     
+     console.log('currentLeg: ', currentLeg)
       switch(currentLeg){
-        case 'request_token': console.log('insertUserToken')
+        case '/oauth/request_token': console.log('insertUserToken')
           this.app.emit(this.eventNames.insertUserToken, this.oauth.bind(this)) 
         break;
-        case 'access_token':  console.log('tokenFound')
+        case '/oauth/access_token':  console.log('tokenFound')
           this.oauth();   // just start access_token search since it wasnt passed on request_token leg   
         break;
+        default: console.log('unknown leg')
       }
      
    }
