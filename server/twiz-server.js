@@ -221,7 +221,7 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
         console.log("Error: "+ err);
         this.next(err)
       }) 
-      this.responce.end();
+      this.response.end();
 
    
     return preflight;
