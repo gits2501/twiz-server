@@ -151,11 +151,12 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
    twtOAuthServer.prototype = Object.create(EventEmitter.prototype) // link EE prototype
    twtOAuthServer.prototype.onNewListeners = function(currentLeg){
      console.log('newListeners')
+     console.log('currentLeg: ', currentLeg)
       switch(currentLeg){
-        case '/oauth/request_token': console.log('insertUserToken')
+        case 'request_token': console.log('insertUserToken')
           this.app.emit(this.eventNames.insertUserToken, this.oauth.bind(this)) 
         break;
-        case '/oauth/access_token':  console.log('tokenFound')
+        case 'access_token':  console.log('tokenFound')
           this.oauth();   // just start access_token search since it wasnt passed on request_token leg   
         break;
       }
