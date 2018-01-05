@@ -149,6 +149,7 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
    };
    
    twtOAuthServer.prototype = Object.create(EventEmitter.prototype) // link EE prototype
+
    twtOAuthServer.prototype.onNewListeners = function(currentLeg){
      console.log('newListeners')
      console.log('currentLeg: ', currentLeg)
@@ -160,7 +161,6 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
           this.oauth();   // just start access_token search since it wasnt passed on request_token leg   
         break;
       }
-     
    }
   
 
@@ -196,7 +196,7 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
       }
       else{
         this.response.setHeader("Access-Control-Allow-Origin","https://gits2501.github.io"); // Other (no preflight) can have just this.
-        this.response.setHeader("Content-Type", "application/json");
+        //this.response.setHeader("Content-Type", "application/json");
         return preflight;
       }
 
@@ -383,10 +383,12 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
         var proxyRequest = https.request(options, function(twtResponse){
  
               twtResponse.setEncoding('utf8');
-
-              if(this.currentLeg !== 'access_token')                                                // 
+              
+              this.response.setHeader('Content-Type', twtResponce.getHeader('Content-Type'));
+              
+              if(this.currentLeg !== 'access_token') {                                               // 
               twtResponse.pipe(this.response);            // pipe the twitter responce to client's responce;
-
+              
               twtResponse.on('data', function(data){
                 console.log(" twitter responded: ", data);
                 vault.twtData += data;                    // makes 
@@ -424,7 +426,7 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
       this.currentLeg = 'AccessProtectedResources'; // another api call (but has special name), bcz all 3 legs 
                                                     // were passed up to this point 
 
-      this.oauth(JSON.encode(twtData));
+      this.oauth(JSON.parse(twtData));
    }
 
    twtOAuthServer.prototype.checkAllParams = function (vault){
