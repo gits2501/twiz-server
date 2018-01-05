@@ -387,7 +387,7 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
  
               twtResponse.setEncoding('utf8');
 
-             // console.log('twtResponse:', twtResponse.headers);
+             console.log('twtResponse content-type: ', twtResponse.headers['content-type']);
               // hack for twitters incorect content-type=html/text value in request token step
               if(this.currentLeg === 'request_token') this.response.setHeader('Content-Type','text/plain');
 
@@ -432,8 +432,13 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
          console.log('in access protected resources')
       this.currentLeg = 'AccessProtectedResources'; // another api call (but has special name), bcz all 3 legs 
                                                     // were passed up to this point 
-
-      this.oauth(JSON.parse(twtData));
+      try{
+        twtData = JSON.parse(twtData)  
+      }
+      catch(er){
+        twtData = url.parse("?" + twtData, true).query // simple hack for parsing twitter access token string
+      }
+      this.oauth(twtData);
    }
 
    twtOAuthServer.prototype.checkAllParams = function (vault){
