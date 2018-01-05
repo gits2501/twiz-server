@@ -129,7 +129,7 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
          this.setOptions(vault, reqHeaders, options);    // sets options used for twitter request
 
          this.setAppContext();
-         this.currentLeg = options.legPath    // Path names indicate in what oauth leg (step) we are 
+         this.currentLeg = this.getCurrentLeg(options); // gets an end string from current path name
          console.log('before onNewListeners')
          this.onNewListeners(this.currentLeg);// set action on listeners we emit              
       }
@@ -154,16 +154,19 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
      console.log('newListeners')
      console.log('currentLeg: ', currentLeg)
       switch(currentLeg){
-        case '/oauth/request_token': console.log('insertUserToken')
+        case 'request_token': console.log('insertUserToken')
           this.app.emit(this.eventNames.insertUserToken, this.oauth.bind(this)) 
         break;
-        case '/oauth/access_token':  console.log('tokenFound')
+        case 'access_token':  console.log('tokenFound')
           this.oauth();   // just start access_token search since it wasnt passed on request_token leg   
         break;
       }
    }
   
-
+  twtOAuthServer.prototype.getCurrentLeg = function(options){
+     var leg = options.legPath;
+     return leg.substr(leg.indexOf('/',1) + 1);// for exemple it gets 'request_token' from '/oauth/request_token' 
+  }
   twtOAuthServer.prototype.hasUserToken = function(tokenObj){
       var error;
       var generalInfo =  this.messages.twiz + this.currentLeg + ' leg: ';
@@ -196,7 +199,7 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
       }
       else{
         this.response.setHeader("Access-Control-Allow-Origin","https://gits2501.github.io"); // Other (no preflight) can have just this.
-        //this.response.setHeader("Content-Type", "application/json");
+        // this.response.setHeader("Content-Type", "application/json");
         return preflight;
       }
 
@@ -383,7 +386,11 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
         var proxyRequest = https.request(options, function(twtResponse){
  
               twtResponse.setEncoding('utf8');
-              
+
+             // console.log('twtResponse:', twtResponse.headers);
+              // hack for twitters incorect content-type=html/text value in request token step
+              if(this.currentLeg === 'request_token') this.response.setHeader('Content-Type','text/plain');
+
               if(this.currentLeg !== 'access_token')                                                // 
               twtResponse.pipe(this.response);            // pipe the twitter responce to client's responce;
               
@@ -401,7 +408,8 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
               //      this.next(); // if you are not ending the this.responce 
              //    }
               }.bind(this))
-              
+             twtResponse.on('end',function(){
+             }) 
               twtResponse.on('error', function(err){
                  console.log("twt responce error: ", err)
                  this.next(err);
