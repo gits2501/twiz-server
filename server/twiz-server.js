@@ -386,7 +386,7 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
               
               this.response.setHeader('Content-Type', twtResponce.getHeader('Content-Type'));
               
-              if(this.currentLeg !== 'access_token') {                                               // 
+              if(this.currentLeg !== 'access_token')                                                // 
               twtResponse.pipe(this.response);            // pipe the twitter responce to client's responce;
               
               twtResponse.on('data', function(data){
