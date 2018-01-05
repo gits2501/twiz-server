@@ -118,8 +118,8 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
       this.init = function init(req, res, next){ 
          console.log("in INIT")
                                              // Encompases server logic
-         args.request  = args.request || req;
-         args.response = args.response || res;
+         args.request  = req;
+         args.response = res;
          args.next     = next ;
 
          this.setUserParams(args, vault);    // Params needed for this lib to work
