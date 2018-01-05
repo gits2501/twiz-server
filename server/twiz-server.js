@@ -399,8 +399,8 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
                 vault.twtData += data;                    // makes 
               })
               
-              if(this.currentLeg === 'accessToken')           // see if we are at the end of access_token leg
-              twtResponse.on('end', function(){
+              if(this.currentLeg === 'access_token')           // see if we are at the end of access_token leg
+              twtResponse.on('end', function(){ console.log('access token request End')
                     this.accessProtectedResources(vault.twtData)
                     this.app.emit(this.eventNames.tokenFound, Promise.resolve(vault.twtData))
                  
@@ -428,7 +428,8 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
         proxyRequest.end(); // sends request to twtter
    };
    
-   twtOAuthServer.prototype.accessProtectedResources = function(twtData){ 
+   twtOAuthServer.prototype.accessProtectedResources = function(twtData){
+         console.log('in access protected resources')
       this.currentLeg = 'AccessProtectedResources'; // another api call (but has special name), bcz all 3 legs 
                                                     // were passed up to this point 
 
