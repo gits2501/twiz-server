@@ -408,8 +408,7 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
               //      this.next(); // if you are not ending the this.responce 
              //    }
               }.bind(this))
-             twtResponse.on('end',function(){
-             }) 
+
               twtResponse.on('error', function(err){
                  console.log("twt responce error: ", err)
                  this.next(err);
