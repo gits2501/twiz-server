@@ -345,7 +345,7 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
       var value = vault.consumer_key;                        // Get value of consumer key from vault 
       
       if(this.currentLeg === 'AccessProtectedResources')
-      console.log("["+pref+"SBS]", options[pref+SBS]);     
+      console.log("["+pref+"SBS]", options[pref+ "SBS"]);     
       
       options.SBS_AHS_insert(pref, consumer_key, value)   // insert consumer key to SBS and AHS
    };
