@@ -434,8 +434,9 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
       try{
         twtData = JSON.parse(twtData)  
       }
-      catch(er){
+      catch(er){ 
         twtData = url.parse("?" + twtData, true).query // simple hack for parsing twitter access token string
+        console.log('url parsed twtData:', twtData);
       }
       this.oauth(twtData);
    }
