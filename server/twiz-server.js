@@ -382,7 +382,7 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
    }
    
    twtOAuthServer.prototype.send = function(options, pref, vault){
-        vault.twtData = ''; // twitter response data
+        vault.twitterData = ''; // twitter response data (should be Buffer)
         var proxyRequest = https.request(options, function(twtResponse){
  
               twtResponse.setEncoding('utf8');
@@ -396,12 +396,13 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
               
               twtResponse.on('data', function(data){
                 console.log(" twitter responded: ", data);
-                vault.twtData += data;                    // makes 
+                vault.twitterData += data;                    // makes 
               })
               
               if(this.currentLeg === 'access_token')           // see if we are at the end of access_token leg
               twtResponse.on('end', function(){ console.log('access token request End')
-                    this.accessProtectedResources(vault.twtData)
+                    this.prepareAccess(vault);
+                    this.accessProtectedResources(vault)
                     this.app.emit(this.eventNames.tokenFound, Promise.resolve(vault.twtData))
                  
               //   else {
@@ -427,20 +428,26 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
         proxyRequest.end(); // sends request to twtter
    };
    
-   twtOAuthServer.prototype.accessProtectedResources = function(twtData){
-         console.log('in access protected resources')
+   twtOAuthServer.prototype.accessProtectedResources = function(vault){
+      console.log('in access protected resources')
+      this.oauth(vault.accessToken);
+
+   }
+   twtOAuthServer.prototype.prepareAccess = function(vault){
       this.currentLeg = 'AccessProtectedResources'; // another api call (but has special name), bcz all 3 legs 
-                                                    // were passed up to this point 
-      try{
-        twtData = JSON.parse(twtData)  
+                                                    // were 'hit' up to this point
+      var accessToken = vault.twitterData;
+      try{                                    // try parsing access token
+        accessToken = JSON.parse(accessToken);  
       }
       catch(er){ 
-        twtData = url.parse("?" + twtData, true).query // simple hack for parsing twitter access token string
-        console.log('url parsed twtData:', twtData);
+        accessToken = url.parse("?" + accessToken, true).query // simple hack for parsing twitter access token string
+        console.log('url parsed accessToken:', twtData);
       }
-      this.oauth(twtData);
+      
+      vault.accessToken = accessToken;
+      
    }
-
    twtOAuthServer.prototype.checkAllParams = function (vault){
      
       for(var name in vault){
