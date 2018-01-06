@@ -442,7 +442,7 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
       }
       catch(er){ 
         accessToken = url.parse("?" + accessToken, true).query // simple hack for parsing twitter access token string
-        console.log('url parsed accessToken:', twtData);
+        console.log('url parsed accessToken:', accessToken);
       }
       
       vault.accessToken = accessToken;
