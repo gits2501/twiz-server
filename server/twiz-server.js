@@ -315,29 +315,45 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
    twtOAuthServer.prototype.sendRequest = function(vault, options, pref){  // inserts consumer key into
                                                                            // signatureBaseString and authorize
                                                                            // header string
-       this.setEncoding('utf8');                // Sets encoding to client request stream 
-       vault.body = "";
-       this.request.on('data', function(data){  // Gets body from request and puts it into vault
-           vault.body += data;                  // 
-       });
-
-       this.insertConsumerKey(vault, options, pref); // inserts consumer_key into SBS and AHS      
-
-       if(pref === 'api') this.insertToken(vault, options, pref)// insert user sensive token 
-       
-       this.insertSignature(vault, options, pref);   // inserts signature into AHS
-       this.finalizeOptions(options, pref);          // picks final options which are used in request
-       
-       this.request.on('end', function(){     
-              this.send(options, pref, vault);       // sends request to twitter
-       }.bind(this)); // Async function loose "this" context, binding it in order not to lose it.
+      this.setEncoding('utf8');                  // Sets encoding to client request stream 
       
-       if(this.currentLeg === 'AccessProtectedResources'){
-         console.log('in APR - sendingRequest');
-         this.send(options,pref, vault);
-       }
+      this.receiveRequest(vault, options, pref); // receives client request body
+      this.signRequest(vault, options, pref);    // inserts keys and signature
+        
+      this.transmitRequest(vault, options, pref); // sends request     
    };
-  
+
+   twtOAuthServer.prototype.transmitRequest = function(vault, options, pref){
+
+     if(this.currentLeg === 'AccessProtectedResources'){
+        console.log('in APR - sendingRequest');
+        this.send(options,pref, vault);
+        return;
+     }
+     
+     this.request.on('end', function(){     
+          this.send(options, pref, vault);     // Sends request to twitter
+     }.bind(this)); // Async function loose "this" context, binding it in order not to lose it.
+   }
+
+   twtOAuthServer.prototype.receiveRequest = function(vault, options, pref){
+      vault.body = "";
+      this.request.on('data', function(data){  // Gets body from request and puts it into vault
+          vault.body += data;                   
+      });
+ 
+       }
+   
+   twtOAuthServer.prototype.signRequest = function(vault, options, pref){
+      this.insertConsumerKey(vault, options, pref);            // inserts consumer_key into SBS and AHS      
+
+      if(pref === 'api') this.insertToken(vault, options, pref)// insert user access_token in api calls
+       
+      this.insertSignature(vault, options, pref);              // inserts signature into AHS
+      this.finalizeOptions(options, pref);                     // picks final options which are used in request
+
+   }
+
    twtOAuthServer.prototype.insertConsumerKey = function(vault, options, pref){// insert missing consumer key in 
                                                                                // SBS and AHS
 
