@@ -166,7 +166,7 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
   twtOAuthServer.prototype.getCurrentLeg = function(options){
      var leg = options.legPath;
      return leg.substr(leg.indexOf('/',1) + 1);// for exemple it gets 'request_token' from '/oauth/request_token' 
-  }
+  } 
   twtOAuthServer.prototype.hasUserToken = function(tokenObj){
       var error;
       var generalInfo =  this.messages.twiz + this.currentLeg + ' leg: ';
@@ -331,6 +331,11 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
        this.request.on('end', function(){     
               this.send(options, pref, vault);       // sends request to twitter
        }.bind(this)); // Async function loose "this" context, binding it in order not to lose it.
+      
+       if(this.currentLeg === 'AccessProtectedResources'){
+         console.log('in APR - sendingRequest');
+         this.send(options,pref, vault);
+       }
    };
   
    twtOAuthServer.prototype.insertConsumerKey = function(vault, options, pref){// insert missing consumer key in 
@@ -338,7 +343,10 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
 
       var consumer_key = options.missingVal_SBS.consumer_key;// get consumer key name (as it stands in OAuth Spec
       var value = vault.consumer_key;                        // Get value of consumer key from vault 
-
+      
+      if(this.currentLeg === 'AccessProtectedResources')
+      console.log("["+pref+"SBS]", options[pref+SBS]);     
+      
       options.SBS_AHS_insert(pref, consumer_key, value)   // insert consumer key to SBS and AHS
    };
 
@@ -361,12 +369,12 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
                                                                                               // on api calls
                                                                                               //, add token_secr 
 
-      var sbs = options[pref + 'SBS'];                              // get SBS
-      var signature = HmacSha1.digest(signingKey, sbs);             // calculates oauth_signature
+      var sbs = options[pref + 'SBS'];                           // get SBS
+      var signature = HmacSha1.digest(signingKey, sbs);          // calculates oauth_signature
 
       
-      var ahs = options[pref + 'AH'];                                // get ah
-      var key = options.missingVal_AHS.signature; // take key name 
+      var ahs = options[pref + 'AH'];                            // get ah
+      var key = options.missingVal_AHS.signature;                // take key name 
       options[pref + 'AH'] = options.insertKey(ahs, options.missingVal_AHS, key, signature, true); 
                                                                          // inserts signature into AHS
       console.log(" SIGNATURE: " + signature);
