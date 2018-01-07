@@ -412,7 +412,9 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
               twtResponse.setEncoding('utf8');
 
              console.log('twtResponse content-type: ', twtResponse.headers['content-type']);
-              // hack for twitters incorect content-type=html/text value in request token step
+             console.log('twtResponse statusCode: ', twtResponse.statusCode);
+             console.log('twtResponse statusMessage: ', twtResponse.statusMessage);
+              // hack for twitters incorect content-type=text/html value in request token step
               if(this.currentLeg === 'request_token') this.response.setHeader('Content-Type','text/plain');
 
               if(this.currentLeg !== 'access_token')                                                // 
@@ -427,7 +429,7 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
               twtResponse.on('end', function(){ console.log('access token request End')
                     this.prepareAccess(vault);
                     this.accessProtectedResources(vault)
-                    this.app.emit(this.eventNames.tokenFound, Promise.resolve(vault.twtData))
+                    this.app.emit(this.eventNames.tokenFound, Promise.resolve(vault.twitterData))
                  
               //   else {
               //      this.next(); // if you are not ending the this.responce 
