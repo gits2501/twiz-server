@@ -450,7 +450,7 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
      console.log('twtResponse error:', err)
      this.next(err);
    }
-   twtOAuthServer.receiveBody = function(twtResponse, vault){
+   twtOAuthServer.prototype.receiveBody = function(twtResponse, vault){
       twtResponse.on('data', function(data){
          console.log(" twitter responded: ", data);
          vault.twitterData += data;                    // makes 
