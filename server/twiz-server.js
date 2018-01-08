@@ -442,7 +442,9 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
    };
    
    twtOAuthServer.prototype.onFailure = function(twtResponse){
-      twtResponse.pipe(this.request);              // pipe response to clent response
+      console.log('in onFailure')
+      twtResponse.pipe(this.response);              // pipe response to clent response
+     console.log('before errorHandler');
       twtResponse.on('error', this.errorHandler.bind(this));  // on error, call next(err)
    }
 
