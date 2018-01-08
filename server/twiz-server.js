@@ -342,7 +342,7 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
           vault.body += data;                   
       });
  
-       }
+   }
    
    twtOAuthServer.prototype.signRequest = function(vault, options, pref){
       this.insertConsumerKey(vault, options, pref);            // inserts consumer_key into SBS and AHS      
@@ -414,33 +414,20 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
              console.log('twtResponse content-type: ', twtResponse.headers['content-type']);
              console.log('twtResponse statusCode: ', twtResponse.statusCode);
              console.log('twtResponse statusMessage: ', twtResponse.statusMessage);
-              // hack for twitters incorect content-type=text/html value in request token step
-              if(this.currentLeg === 'request_token') this.response.setHeader('Content-Type','text/plain');
+              if(twtResponse.statusCode !== 200 ){ 
+                 this.onFailure(twtResponse); return
+              }
+
+              this.setResponseHeaders(twtResponse);   
 
               if(this.currentLeg !== 'access_token')                                                // 
               twtResponse.pipe(this.response);            // pipe the twitter responce to client's responce;
               
-              twtResponse.on('data', function(data){
-                console.log(" twitter responded: ", data);
-                vault.twitterData += data;                    // makes 
-              })
-              
+              this.receiveBody(twtResponse, vault); 
               if(this.currentLeg === 'access_token')           // see if we are at the end of access_token leg
-              twtResponse.on('end', function(){ console.log('access token request End')
-                    this.prepareAccess(vault);
-                    this.accessProtectedResources(vault)
-                    this.app.emit(this.eventNames.tokenFound, Promise.resolve(vault.twitterData))
-                 
-              //   else {
-              //      this.next(); // if you are not ending the this.responce 
-             //    }
-              }.bind(this))
+              twtResponse.on('end', this.accesTokenEnd.bind(this, vault))
 
-              twtResponse.on('error', function(err){
-                 console.log("twt responce error: ", err)
-                 this.next(err);
-
-              }.bind(this))
+              twtResponse.on('error', this.errorHandler.bind(this));
 
         }.bind(this))
 
@@ -454,11 +441,37 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
         proxyRequest.end(); // sends request to twtter
    };
    
+   twtOAuthSever.prototype.onFailure = function(twtResponse){
+      twtResponse.pipe(this.request);              // pipe response to clent response
+      twtResponse.on('error', this.errorHandler.bind(this));  // on error, call next(err)
+   }
+
+   twtOAuthServer.prototype.errorHandler = function(err){
+     console.log('twtResponse error:', err)
+     this.next(err);
+   }
+   twtOAuthServer.receiveBody = function(twtResponse, vault){
+      twtResponse.on('data', function(data){
+         console.log(" twitter responded: ", data);
+         vault.twitterData += data;                    // makes 
+      })
+   }
+   twtOAuthServer.prototype.accessTokenEnd = function(vault){
+     this.accessProtectedResources(vault)
+     this.app.emit(this.eventNames.tokenFound, Promise.resolve(vault.twitterData))
+   }
+   twtOAuthServer.prototype.setResponse = function(twtResponse){
+      // hack for twitter's incorect(?) content-type=text/html response in request token step
+      if(this.currentLeg === 'request_token') this.response.setHeader('Content-Type','text/plain');
+   }
+
    twtOAuthServer.prototype.accessProtectedResources = function(vault){
+      this.prepareAccess(vault);
       console.log('in access protected resources')
       this.oauth(vault.accessToken);
 
    }
+
    twtOAuthServer.prototype.prepareAccess = function(vault){
       this.currentLeg = 'AccessProtectedResources'; // another api call (but has special name), bcz all 3 legs 
                                                     // were 'hit' up to this point
@@ -561,8 +574,8 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
    }
    
    twtOAuthServer.prototype.setTimestamp = function(){
-      this.oauth.timestamp = Date.now() / 1000 | 0;// cuting off decimal part by converting it to 32 bit integer
-                                                   // in bitwise OR operation. 
+     this.oauth.timestamp = Date.now() / 1000 | 0;// cuting off decimal part by converting it to 32 bit integer
+                                                  // in bitwise OR operation. 
    }
 
    module.exports =  function(args){
