@@ -425,7 +425,7 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
               
               this.receiveBody(twtResponse, vault); 
               if(this.currentLeg === 'access_token')           // see if we are at the end of access_token leg
-              twtResponse.on('end', this.accesTokenEnd.bind(this, vault))
+              twtResponse.on('end', this.accessTokenEnd.bind(this, vault))
 
               twtResponse.on('error', this.errorHandler.bind(this));
 
