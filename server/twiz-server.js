@@ -441,7 +441,7 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
         proxyRequest.end(); // sends request to twtter
    };
    
-   twtOAuthSever.prototype.onFailure = function(twtResponse){
+   twtOAuthServer.prototype.onFailure = function(twtResponse){
       twtResponse.pipe(this.request);              // pipe response to clent response
       twtResponse.on('error', this.errorHandler.bind(this));  // on error, call next(err)
    }
@@ -460,7 +460,7 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
      this.accessProtectedResources(vault)
      this.app.emit(this.eventNames.tokenFound, Promise.resolve(vault.twitterData))
    }
-   twtOAuthServer.prototype.setResponse = function(twtResponse){
+   twtOAuthServer.prototype.setResponseHeaders = function(twtResponse){
       // hack for twitter's incorect(?) content-type=text/html response in request token step
       if(this.currentLeg === 'request_token') this.response.setHeader('Content-Type','text/plain');
    }
