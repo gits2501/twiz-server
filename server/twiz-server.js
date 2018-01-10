@@ -465,7 +465,7 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
    }
    twtOAuthServer.prototype.accessTokenEnd = function(vault){
      this.accessProtectedResources(vault)
-     this.app.emit(this.eventNames.tokenFound, Promise.resolve(vault.twitterData))
+     this.app.emit(this.eventNames.tokenFound, Promise.resolve(vault.accessToken)) // calls user func with token
    }
    twtOAuthServer.prototype.setResponseHeaders = function(twtResponse){
       // set status line 
