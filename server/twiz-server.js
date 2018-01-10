@@ -446,8 +446,8 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
    
    twtOAuthServer.prototype.onFailure = function(twtResponse){
       console.log('in onFailure')
-      this.response.statusCode = twtResponse.statusCode;
-      this.response.statusMessage  = twtResponse.statusMessage;
+      twtResponse.headers['content-type'] ='text/plain;charset=utf-8';
+      this.response.writeHead(twtResponse.statusCode, twtResponse.statusMessage, twtResponse.headers)
       twtResponse.pipe(this.response);              // pipe response to clent response
      console.log('before errorHandler');
       twtResponse.on('error', this.errorHandler.bind(this));  // on error, call next(err)
