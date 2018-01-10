@@ -467,12 +467,13 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
    }
    twtOAuthServer.prototype.setResponseHeaders = function(twtResponse){
       // set status line 
-      this.response.statusCode    = twtResponse.statusCode;
-      this.response.statusMessage = twtResponse.statusMessage;
+
+      var headers = twtResponse.headers;
  
       // hack for twitter's incorect(?) content-type=text/html response in request token step
-      if(this.currentLeg === 'request_token') this.response.setHeader('Content-Type','text/plain'); //application                                                                                                  // /x-www-url-e
-      this.response.setHeader('Content-Type', twtResponse.headers['content-type']);
+      if(this.currentLeg === 'request_token') headers['content-type'] = 'text/plain;charset=utf-8'; //application                                                                                                  // /x-www-url-e
+      
+      this.response.writeHead(twtResponse.statusCode, twtResponse.statusMessage, headers);
    }
 
 
