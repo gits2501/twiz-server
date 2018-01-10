@@ -419,12 +419,14 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
                  this.onFailure(twtResponse); return
               }
 
-              this.setResponseHeaders(twtResponse);   
 
-              if(this.currentLeg !== 'access_token')                                                // 
-              twtResponse.pipe(this.response);            // pipe the twitter responce to client's responce;
-              
+              if(this.currentLeg !== 'access_token'){ // acces_token data are never send to client
+                this.setResponseHeaders(twtResponse);   
+                twtResponse.pipe(this.response);            // pipe the twitter responce to client's responce;
+              } 
+
               this.receiveBody(twtResponse, vault); 
+
               if(this.currentLeg === 'access_token')           // see if we are at the end of access_token leg
               twtResponse.on('end', this.accessTokenEnd.bind(this, vault))
 
