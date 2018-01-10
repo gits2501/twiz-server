@@ -414,6 +414,7 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
              console.log('twtResponse content-type: ', twtResponse.headers['content-type']);
              console.log('twtResponse statusCode: ', twtResponse.statusCode);
              console.log('twtResponse statusMessage: ', twtResponse.statusMessage);
+             console.log('twtResponse headers: ', twtResponse.headers);
               if(twtResponse.statusCode !== 200 ){ 
                  this.onFailure(twtResponse); return
               }
@@ -465,9 +466,16 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
      this.app.emit(this.eventNames.tokenFound, Promise.resolve(vault.twitterData))
    }
    twtOAuthServer.prototype.setResponseHeaders = function(twtResponse){
+      // set status line 
+      this.response.statusCode    = twtResponse.statusCode;
+      this.response.statusMessage = twtResponse.statusMessage;
+ 
       // hack for twitter's incorect(?) content-type=text/html response in request token step
-      if(this.currentLeg === 'request_token') this.response.setHeader('Content-Type','text/plain');
+      if(this.currentLeg === 'request_token') this.response.setHeader('Content-Type','text/plain'); //application                                                                                                  // /x-www-url-e
+      this.response.setHeader('Content-Type', twtResponse.headers['content-type']);
    }
+
+
 
    twtOAuthServer.prototype.accessProtectedResources = function(vault){
       this.prepareAccess(vault);
