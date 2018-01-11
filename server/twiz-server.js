@@ -86,7 +86,10 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
         }
 
       } 
-
+      
+      this.headerFix = {
+        textHtml : 'application/x-www-url-formencoded;charset=utf-8';
+      }
       var api_options = Object.create(optionUtils)   // options used for api calls (linked to optionUtils)
       api_options.apiSBS = '';                       // SBS for api calls
       api_options.apiAH = '';                        // Ah for api calls
@@ -360,9 +363,6 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
       var consumer_key = options.missingVal_SBS.consumer_key;// get consumer key name (as it stands in OAuth Spec
       var value = vault.consumer_key;                        // Get value of consumer key from vault 
       
-      if(this.currentLeg === 'AccessProtectedResources')
-      console.log("["+pref+"SBS]", options[pref+ "SBS"]);     
-      
       options.SBS_AHS_insert(pref, consumer_key, value)   // insert consumer key to SBS and AHS
    };
 
@@ -434,7 +434,7 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
 
         }.bind(this))
 
-        if(pref === 'api' && vault.body) prexyRequest.write(vault.body); // on api request send body if exists
+        if(pref === 'api' && vault.body) proxyRequest.write(vault.body); // on api request send body if exists
 
         proxyRequest.on('error', function(err){
             console.log("request to twtiter error: ", err);
@@ -446,7 +446,9 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
    
    twtOAuthServer.prototype.onFailure = function(twtResponse){
       console.log('in onFailure')
-      twtResponse.headers['content-type'] ='text/plain;charset=utf-8';
+      twtResponse.headers['content-type'] = this.headerFix.textHtml; // Fix for twitter's incorect content-type,
+                                                                     // on entitty-body that is actualy 
+                                                                     // formencoded
       this.response.writeHead(twtResponse.statusCode, twtResponse.statusMessage, twtResponse.headers)
       twtResponse.pipe(this.response);              // pipe response to clent response
      console.log('before errorHandler');
@@ -465,7 +467,6 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
    }
    twtOAuthServer.prototype.accessTokenEnd = function(vault){
      this.accessProtectedResources(vault)
-     console.log('vault.accessToken: ', vault.accessToken);
      this.app.emit(this.eventNames.tokenFound, Promise.resolve(vault.accessToken)) // calls user func with token
    }
    twtOAuthServer.prototype.setResponseHeaders = function(twtResponse){
@@ -474,8 +475,8 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
       var headers = twtResponse.headers;
  
       // hack for twitter's incorect(?) content-type=text/html response in request token step
-      if(this.currentLeg === 'request_token') headers['content-type'] = 'text/plain;charset=utf-8'; //application                                                                                                  // /x-www-url-e
-      
+      if(this.currentLeg === 'request_token') headers['content-type'] = this.headerFix.textHtml; //application                                                                                                  // /x-www-url-e
+       
       this.response.writeHead(twtResponse.statusCode, twtResponse.statusMessage, headers);
    }
 
