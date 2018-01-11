@@ -88,7 +88,7 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
       } 
       
       this.headerFix = {
-        textHtml : 'application/x-www-url-formencoded;charset=utf-8';
+        textHtml : 'application/x-www-url-formencoded;charset=utf-8'
       }
       var api_options = Object.create(optionUtils)   // options used for api calls (linked to optionUtils)
       api_options.apiSBS = '';                       // SBS for api calls
