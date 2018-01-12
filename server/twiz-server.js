@@ -438,8 +438,10 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
 
         }.bind(this))
 
-        if(pref === 'api' && vault.body) proxyRequest.write(vault.body); // on api request send body if exists
-
+        if(pref === 'api' && vault.body){
+            proxyRequesst.setHeader('Content-Type', this.request.headers['content-type']);
+            proxyRequest.write(vault.body); // on api request send body if exists
+        }
         proxyRequest.on('error', function(err){
             console.log("request to twtiter error: ", err);
             // this.next(err)
