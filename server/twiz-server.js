@@ -132,7 +132,7 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
          this.setOptions(vault, reqHeaders, options);    // sets options used for twitter request
 
          this.setAppContext();
-         this.currentLeg = this.getCurrentLeg(options); // gets an end string from current path name
+         this.currentLeg = this.getCurrentLeg(options);
          console.log('before onNewListeners')
          this.onNewListeners(this.currentLeg);// set action on listeners we emit              
       }
@@ -140,11 +140,15 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
       this.oauth = function (tokenObj){         
           var pref = 'leg';                  // Prefix or preference var, picks 3-leg dance or twitter api call
           console.log('in oauth')
-          if(tokenObj && this.hasUserToken(tokenObj)) { 
+
+          if(tokenObj && this.hasUserToken(tokenObj)) { // check object for access_token values
              vault.accessToken = tokenObj;    // Put token object in vault
              pref = 'api';                   // Since we have user token, we can go for twitter api call
+             this.currentLeg = pref;    // leg is actualy an api call (call after we have acquired access_token)
+             console.log('currentLeg in api:', this.currentLeg)
           }                        
 
+          
           this.sendRequest(vault, options, pref); // inserts needed tokens, signs the strings, sends request 
           
       }
