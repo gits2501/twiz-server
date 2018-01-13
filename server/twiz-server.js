@@ -439,7 +439,7 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
         }.bind(this))
 
         if(pref === 'api' && vault.body){
-            proxyRequesst.setHeader('Content-Type', this.request.headers['content-type']);
+            proxyRequest.setHeader('Content-Type', this.request.headers['content-type']); // set type that came
             proxyRequest.write(vault.body); // on api request send body if exists
         }
         proxyRequest.on('error', function(err){
