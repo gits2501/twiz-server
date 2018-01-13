@@ -458,6 +458,9 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
       twtResponse.headers['content-type'] = this.headerFix.textHtml; // Fix for twitter's incorect content-type,
                                                                      // on entitty-body that is actualy 
                                                                      // formencoded
+     twtResponse.on('data', function(data){
+       console.log('failure body:', data)  
+     })
       this.response.writeHead(twtResponse.statusCode, twtResponse.statusMessage, twtResponse.headers)
       twtResponse.pipe(this.response);              // pipe response to clent response
      console.log('before errorHandler');
