@@ -454,7 +454,15 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
 
         proxyRequest.end(function(){
 
-            console.log('proxyRequest.headers:', proxyRequest.headers);
+            console.log('proxyRequest.headers:');
+            console.log('pR.content-type:', twtRequest.getHeader('content-type'))
+            console.log('pR.TE:', twtRequest.getHeader('TE'));
+            
+            console.log('pR.content-length:', twtRequest.getHeader('content-length'))
+            console.log('pR.content-encoding', twtRequest.getHeader('content-encoding'))
+
+            console.log('pR.transfer-encoding:', twtRequest.getHeader('transfer-encoding'))// shouldnt have one
+            
         }); // sends request to twtter
    };
    
