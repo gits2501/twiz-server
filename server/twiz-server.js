@@ -446,14 +446,16 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
             proxyRequest.setHeader('Content-Length', this.request.headers['content-length']);
             proxyRequest.write(vault.body); // on api request send body if exists
             
-            console.log('proxyRequest.headers:', proxyRequest.headers);
         }
         proxyRequest.on('error', function(err){
             console.log("request to twtiter error: ", err);
             // this.next(err)
         }.bind(this))
 
-        proxyRequest.end(); // sends request to twtter
+        proxyRequest.end(function(){
+
+            console.log('proxyRequest.headers:', proxyRequest.headers);
+        }); // sends request to twtter
    };
    
    twtOAuthServer.prototype.onFailure = function(twtResponse){
