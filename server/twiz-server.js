@@ -442,8 +442,9 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
             console.log('request.content-type: ', this.request.headers['content-type']);
             console.log('request.content-length: ', this.request.headers['content-length']);
             console.log('request.body: ', vault.body);
-            proxyRequest.setHeader('Content-Type', this.request.headers['content-type']); // set type that came
-            proxyRequest.setHeader('Content-Length', this.request.headers['content-length']);
+           // proxyRequest.setHeader('Content-Type', this.request.headers['content-type']); // set type that came
+          //  proxyRequest.setHeader('Content-Length', this.request.headers['content-length']);
+             proxyRequest.setHeader('Transfer-Encoding','chunked' );
             proxyRequest.write(vault.body); // on api request send body if exists
             
         }
