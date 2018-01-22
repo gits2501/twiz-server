@@ -22,7 +22,7 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
    function Options (args){
 
       this.request;  // request stream
-      this.response; // responce stream 
+      this.response; // response stream 
 
       var vault = {            // sensitive data in private var
         "consumer_key": "",    // app's consumer key
@@ -138,7 +138,9 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
           if(tokenObj && this.hasUserToken(tokenObj)) { // check object for access_token values
              vault.accessToken = tokenObj;  // Put token object in vault
              pref = 'api';                  // Since we have user token, we can go for twitter api call
-             this.currentLeg = pref;    // leg is actualy an api call (call after we have acquired access_token)
+             this.currentLeg = this.currentLeg === 'AccessProtectedResources' ? this.currentLeg : pref 
+                                            // AccessProtectedResources is just like an 'api' call, but special
+                                            // in that we've hit all 3-legs of OAuth up to this point. 
              console.log('currentLeg in api:', this.currentLeg)
           }                        
           
@@ -219,7 +221,7 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
       certNotSet: "You must provide cert (certificate) used in https encription when connecting to twitter.",
       keyNotSet: "You must provide key (private key) used in https encription when connecting to twitter",
       requestNotSet: "You must provide request (read) stream",
-      responceNotSet: "You must provide responce (write) stream",
+      responseNotSet: "You must provide response (write) stream",
       oaTokenMissing: "oauth_token is missing",
       oaTokenSecretMissing: "oauth_token_secret is missing"
    }
@@ -434,7 +436,7 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
    }
 
    ClientRequest.prototype.transmitRequest = function(vault, options, pref){
-
+     
      if(this.currentLeg === 'AccessProtectedResources'){
         console.log('in APR - sendingRequest');
         this.send(options,pref, vault);
@@ -482,14 +484,14 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
               }
 
 
-              if(this.currentLeg !== 'access_token'){    // acces_token data are never sent to client
+              if(this.currentLeg !== 'access_token'){    // access_token data are never sent to client
                 this.setResponseHeaders(twtResponse);   
-                twtResponse.pipe(this.response);         // pipe the twitter responce to client's responce;
+                twtResponse.pipe(this.response);         // pipe the twitter responce to client's response;
               } 
 
               this.receiveBody(twtResponse, vault); 
 
-              if(this.currentLeg === 'access_token')        // 
+              if(this.currentLeg === 'access_token')     // 
               twtResponse.on('end', this.accessTokenEnd.bind(this, vault))
 
               twtResponse.on('error', this.errorHandler.bind(this));
@@ -576,8 +578,7 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
    }
 
    TwitterProxy.prototype.prepareAccess = function(vault){
-      this.currentLeg = 'AccessProtectedResources'; // another api call (but has special name), bcz all 3 legs 
-                                                    // were 'hit' up to this point
+      this.currentLeg = 'AccessProtectedResources'; // indicate that we've hit all 3-legs of OAuth to this point 
       var accessToken = vault.twitterData;
       try{                                    // try parsing access token
         accessToken = JSON.parse(accessToken);  
@@ -653,7 +654,6 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
      return function(){
       
         var r = new twizServer(args); 
-        for (var prop in r){console.log(prop)};
         return r.init.bind(r);
      } 
    }
