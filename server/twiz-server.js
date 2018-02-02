@@ -232,7 +232,7 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
    };
 
    Options.prototype.getRequestHeaders = function(reqHeaders){ // takes headers from request if header
-                                                                      // is supported ( is in reqHeaders)
+                                                               // is supported ( is in reqHeaders)
       var sentHeaders = this.request.headers // headers from request stream
       for(var name in reqHeaders){           // omiting content-length, since it must be 0, for POST with no body
          if(sentHeaders.hasOwnProperty(name) && name !== 'content-length') reqHeaders[name] = sentHeaders[name];
@@ -535,8 +535,11 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
       twtResponse.on('data', function(data){
         console.log('failure body:', data)  
       })
-      
+      console.log('currentLeg: ', this.currentLeg)
+      console.log('twtResponse.content-type: ',twtResponse.headers['content-type'])
+
       this.response.writeHead(twtResponse.statusCode, twtResponse.statusMessage, twtResponse.headers)
+
       twtResponse.pipe(this.response);              // pipe response to clent response
         console.log('before errorHandler');
       twtResponse.on('error', this.errorHandler.bind(this));  // on error, call next(err)
