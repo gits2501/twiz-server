@@ -527,8 +527,8 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
    
    TwitterProxy.prototype.onFailure = function(twtResponse){
       console.log('in onFailure')
-      if(this.currentLeg !== 'api'){   // when error is some oauth leg, twitter send content-type=application/json
-                                      // but body is actually form encoded
+      if(this.currentLeg !== 'api' || this.currentLeg !== 'AccessProtectedResources'){// when error is some oauth
+                                                              // leg, twitter send content-type=application/json                                                                             // but body is actually form encoded
         twtResponse.headers['content-type'] = this.headerFix.textHtml; // Fix for twitter's incorect content-type,
       }                                                               // on entitty-body that is actualy 
                                                                      // formencoded
