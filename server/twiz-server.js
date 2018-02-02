@@ -62,7 +62,7 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
             var ahs = this[pref + 'AH'];        // ah (of some prefix)
             this[pref + 'AH'] = this.insertKey(ahs, this.missingVal_AHS, key , value, true);// set key in AHS
 
-         },
+         }, 
      
          insertKey: function(insertString, missingVal, keyName, keyValue, ah){
             var str = insertString; 
@@ -144,9 +144,7 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
              console.log('currentLeg in api:', this.currentLeg)
           }                        
           
-          
           this.sendRequest(vault, options, pref); // inserts needed tokens, signs the strings, sends request 
-          
       }
       
    };
@@ -529,8 +527,10 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
    
    TwitterProxy.prototype.onFailure = function(twtResponse){
       console.log('in onFailure')
-      twtResponse.headers['content-type'] = this.headerFix.textHtml; // Fix for twitter's incorect content-type,
-                                                                     // on entitty-body that is actualy 
+      if(this.currentLeg !== 'api'){   // when error is some oauth leg, twitter send content-type=application/json
+                                      // but body is actually form encoded
+        twtResponse.headers['content-type'] = this.headerFix.textHtml; // Fix for twitter's incorect content-type,
+      }                                                               // on entitty-body that is actualy 
                                                                      // formencoded
       twtResponse.on('data', function(data){
         console.log('failure body:', data)  
