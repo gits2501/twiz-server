@@ -527,7 +527,9 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
    
    TwitterProxy.prototype.onFailure = function(twtResponse){
       console.log('in onFailure')
-      if(this.currentLeg !== 'api' || this.currentLeg !== 'AccessProtectedResources'){// when error is some oauth
+      console.log('content-type (before) : ', twtResponse.headers['content-type'])
+      
+      if(this.currentLeg === 'request_token' || this.currentLeg === 'access_token'){// when error is some oauth
                                                               // leg, twitter send content-type=application/json                                                                             // but body is actually form encoded
         twtResponse.headers['content-type'] = this.headerFix.textHtml; // Fix for twitter's incorect content-type,
       }                                                               // on entitty-body that is actualy 
@@ -536,7 +538,7 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
         console.log('failure body:', data)  
       })
       console.log('currentLeg: ', this.currentLeg)
-      console.log('twtResponse.content-type: ',twtResponse.headers['content-type'])
+      console.log('content-type: ',twtResponse.headers['content-type'])
 
       this.response.writeHead(twtResponse.statusCode, twtResponse.statusMessage, twtResponse.headers)
 
