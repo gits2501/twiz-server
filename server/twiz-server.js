@@ -24,7 +24,7 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
       this.request;  // request stream
       this.response; // response stream 
 
-      var vault = {            // sensitive data in private var
+      var vault = {            // sensitive data kept in private var
         "consumer_key": "",    // app's consumer key
         "consumer_secret": "",
         "cert": "",            // certificate (can be selfsigned)
@@ -37,7 +37,20 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
          'accept-language': "",
          'content-length': '0' // must be zero when method is POST with no body
       }  
-      
+     
+      this.phases = {                    // Indications of request types
+         Leg: 'leg',                     // Any of oauth legs
+         Api: 'api',                     // Api request (afther we got access token from user) 3 leg skiped
+         AccessProtectedResources: 'APR',// Api request (afther we've acquired access token and hit all 3 legs) 
+         VerifyCredentials: 'ver',       // when we want to verify and confirm user's access token
+      }
+  
+      this.currentPhase = '';            // Actuel phase we are in   
+      this.setCurrentPhase = function(phase){
+         this.currentPhase = phase;
+      }
+   
+
       var optionUtils = {
         missingVal_SBS:{
           consumer_key: 'consumer_key',// Name of consumer key as it stands in OAuth (for SBS), without 'oauth' 
@@ -132,19 +145,22 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
       }
 
       this.oauth = function (tokenObj){         
-          var pref = 'leg';                  // Prefix or preference var, picks 3-leg dance or twitter api call
+          this.setCurrentPhase(this.phases.Leg) // assume that phase is one of oauth 3-leg (no access token)
           console.log('in oauth');
 
-          if(tokenObj && this.hasUserToken(tokenObj)) { // check object for access_token values
-             vault.accessToken = tokenObj;  // Put token object in vault
-             pref = 'api';                  // Since we have user token, we can go for twitter api call
-             this.currentLeg = this.currentLeg === 'AccessProtectedResources' ? this.currentLeg : pref 
+          if(tokenObj){
+            this.checkAccesToken(tokenObj)           // check object for access_token values
+             vault.accessToken = tokenObj;          // Put token object in vault
+                                                    // Since we have user token, we can go for twitter api call
+             this.currentPhase !== 'AccessProtectedResources' ? this.currentPhase : 
+                                                                this.setCurrentPhase(this.phases.Api);  
                                             // AccessProtectedResources is just like an 'api' call, but special
                                             // in that we've hit all 3-legs of OAuth up to this point. 
              console.log('currentLeg in api:', this.currentLeg)
           }                        
           
-          this.sendRequest(vault, options, pref); // inserts needed tokens, signs the strings, sends request 
+          this.sendRequest(vault, options, this.currentPhase); // Inserts needed tokens, signs the strings, sends
+                                                               // request 
       }
       
    };
@@ -292,6 +308,7 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
         break;
       }
   } 
+
   
   Options.prototype.finalizeOptions = function(options, pref){ // sets final options that we send in twitter req 
       options.host    = options[pref + 'Host']; // when you start sending pref+ Host in  queryString
@@ -342,7 +359,7 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
 
   OAuth.prototype = Object.create(Options.prototype);
 
-  OAuth.prototype.hasUserToken = function(tokenObj){
+  OAuth.prototype.checkAccesToken = function(tokenObj){
       var error;
       var generalInfo =  this.messages.twiz + this.currentLeg + ' leg: ';
  
@@ -411,6 +428,18 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
   
    ClientRequest.prototype = Object.create(OAuth.prototype);
 
+   ClientRequest.prototype.sendRequest = function(vault, options, pref){  // inserts consumer key into
+                                                                           // signatureBaseString and authorize
+                                                                           // header string
+      this.setEncoding('utf8');                  // Sets encoding to client request stream 
+      
+      this.receiveRequest(vault, options, pref); // receives client request body
+      this.signRequest(vault, options, pref);    // inserts keys and signature
+        
+      this.transmitRequest(vault, options, pref); // sends request     
+   };
+
+
    ClientRequest.prototype.setEncoding = function(str){
       this.request.setEncoding(str); // 
    };
@@ -445,17 +474,6 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
           this.send(options, pref, vault);     // Sends request to twitter
      }.bind(this)); // Async function loose "this" context, binding it in order not to lose it.
    }
-
-   ClientRequest.prototype.sendRequest = function(vault, options, pref){  // inserts consumer key into
-                                                                           // signatureBaseString and authorize
-                                                                           // header string
-      this.setEncoding('utf8');                  // Sets encoding to client request stream 
-      
-      this.receiveRequest(vault, options, pref); // receives client request body
-      this.signRequest(vault, options, pref);    // inserts keys and signature
-        
-      this.transmitRequest(vault, options, pref); // sends request     
-   };
 
    function TwitterProxy(args){
       ClientRequest.call(this, args);
@@ -583,7 +601,8 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
    }
 
    TwitterProxy.prototype.prepareAccess = function(vault){
-      this.currentLeg = 'AccessProtectedResources'; // indicate that we've hit all 3-legs of OAuth to this point 
+      this.setCurrentPhase(this.phases.AccessProtectedResources); // indicate that we've hit all 3-legs of OAuth
+                                                                  // up to this point 
       var accessToken = vault.twitterData;
       try{                                    // try parsing access token
         accessToken = JSON.parse(accessToken);  
