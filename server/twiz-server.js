@@ -152,11 +152,12 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
             this.checkAccesToken(tokenObj)           // check object for access_token values
              vault.accessToken = tokenObj;          // Put token object in vault
                                                     // Since we have user token, we can go for twitter api call
-             this.currentPhase !== 'AccessProtectedResources' ? this.currentPhase : 
-                                                                this.setCurrentPhase(this.phases.Api);  
+             this.currentPhase !== 'AccessProtectedResources' ? this.setCurrentPhase(this.phases.Api):  
+                                                                this.currentPhase;
                                             // AccessProtectedResources is just like an 'api' call, but special
                                             // in that we've hit all 3-legs of OAuth up to this point. 
              console.log('currentLeg in api:', this.currentLeg)
+             console.log('currentPhase: ', this.currentPhase);
           }                        
           
           this.sendRequest(vault, options, this.currentPhase); // Inserts needed tokens, signs the strings, sends
