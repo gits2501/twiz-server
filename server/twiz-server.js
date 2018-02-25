@@ -18,18 +18,36 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
                                                       // , coverts it to hex string char and appends to "%".
      })
    }
+
+   function CustomError(){
+       
+       this.messages = {}; // error messages place holder    
    
-   function Options (args){
+       
+       this.addCustomErrors = function (errors){  // add custom error messages
+ 
+          Object.getOwnPropertyNames(errors).map(function(name){
+     
+            this.messages[name] = errors[name];
+          },this)
+       }
 
-      this.request;  // request stream
-      this.response; // response stream 
+       this.CustomError = function(name){// uses built-in Error func to make custom err info
+          var err = Error(this.messages['name']);      // take message text
+          err['name'] = name;                          // set error name
+          return err; 
+       }
 
-      var vault = {            // sensitive data kept in private var
-        "consumer_key": "",    // app's consumer key
-        "consumer_secret": "",
-        "cert": "",            // certificate (can be selfsigned)
-        "key": ""              // private key (used for https encription)
-      }
+
+   }
+
+   function Options (options, vault, args){ // builds request options and confugures user supplied parameters
+
+      vault.consumer_key =  "",    // app's consumer key
+      vault.consumer_secret = "",
+      vault.cert = "",            // certificate (can be selfsigned)
+      vault.key = ""              // private key (used for https encription)
+      
       
       var reqHeaders = {       // holds headers of a request
          'accept': "",
@@ -38,49 +56,36 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
          'content-length': '0' // must be zero when method is POST with no body
       }  
      
-      this.phases = {                    // Indications of request types
-         Leg: 'leg',                     // Any of oauth legs
-         Api: 'api',                     // Api request (afther we got access token from user) 3 leg skiped
-         AccessProtectedResources: 'APR',// Api request (afther we've acquired access token and hit all 3 legs) 
-         VerifyCredentials: 'ver',       // when we want to verify and confirm user's access token
-      }
-  
-      this.currentPhase = '';            // Actuel phase we are in   
-      this.setCurrentPhase = function(phase){
-         this.currentPhase = phase;
-      }
-   
-
-      var optionUtils = {
-        missingVal_SBS:{
-          consumer_key: 'consumer_key',// Name of consumer key as it stands in OAuth (for SBS), without 'oauth' 
-                                       // prefix. Used when inserting consumer_key value
-          token: 'token',              // Name of access token param for SBS string. Used for inserting token val
-          marker: percentEncode("=&"), // "%3D%26" missing value marker for signature base string
-          offset: 3                    // Esentialy length of percent encoded "&", we place missing between "="
+      function addUtils() {
+         this.missingVal_SBS = {
+            consumer_key: 'consumer_key',// Name of consumer key as it stands in OAuth (for SBS), without 'oauth'
+                                         // prefix. Used when inserting consumer_key value 
+            token: 'token',              // Name of access token param for SBS string. Used for inserting token
+            marker: percentEncode("=&"), // "%3D%26" missing value marker for signature base string
+            offset: 3                    // Esentialy length of percent encoded "&", we place missing between "="
                                        // and "&" 
         },
 
-        missingVal_AHS: { 
-          signature:'signature',            
-          marker: "=\"\"",             // ="" - missing value marker for authorization header string (AHS) 
-          offset: 1                   
+        this.missingVal_AHS = { 
+           signature:'signature',            
+           marker: "=\"\"",             // ="" - missing value marker for authorization header string (AHS) 
+           offset: 1                   
         },
 
-         SBS_AHS_insert: function(pref, key, value){
-            var sbs = this[pref + 'SBS'];       // sbs (of some prefix)
-            this[pref + 'SBS'] = this.insertKey(sbs, this.missingVal_SBS, key, value); // set key in SBS
+        this.SBS_AHS_insert = function(phase, key, value){
+            var sbs = this[phase + 'SBS'];     console.log('sbs_ad insert:',phase,sbs)  // sbs of a phase)
+            this[phase + 'SBS'] = this.insertKey(sbs, this.missingVal_SBS, key, value); // set key in SBS
           
             // key and value are like in those for SBS                                         
-            var ahs = this[pref + 'AH'];        // ah (of some prefix)
-            this[pref + 'AH'] = this.insertKey(ahs, this.missingVal_AHS, key , value, true);// set key in AHS
+            var ahs = this[phase + 'AH'];        // ah of a phase
+            this[phase + 'AH'] = this.insertKey(ahs, this.missingVal_AHS, key , value, true);// set key in AHS
 
-         }, 
+        }, 
      
-         insertKey: function(insertString, missingVal, keyName, keyValue, ah){
+        this.insertKey = function(insertString, missingVal, keyName, keyValue, ah){
             var str = insertString; 
             var len = (keyName.length + missingVal.marker.length) - missingVal.offset;// calcualte idx from where                                                                                      // we insert the value
-            var idx = str.indexOf(keyName);          // take idx of key we search for  
+            var idx = str.indexOf(keyName);          // take index of the key we search  
             // console.log("marker: "+missingVal.marker, "consumer_key: "+ value, "idx: "+idx, "len: "+len) 
             var front = str.slice(0, idx + len); // taking first part 
             var end = str.slice(idx + len )      // taking second part 
@@ -96,41 +101,58 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
         }
 
       } 
-      
-      var api_options = Object.create(optionUtils)   // options used for api calls (linked to optionUtils)
-      api_options.apiSBS = '';                       // SBS for api calls
-      api_options.apiAH = '';                        // Ah for api calls
-      api_options.apiHost = '';
-      api_options.apiPath = '';
-      api_options.apiMethod = '';          
+     
+      function addPhaseParams(){      // Adds parametars for each phase we support 
+         addUtils.call(this);                  // add utility function that use phase params
+         this.apiSBS = '';                     // SBS for api calls
+         this.apiAH = '';                      // Ah for api calls
+         this.apiHost = '';                    // host we hit for api calls
+         this.apiPath = '';                    
+         this.apiMethod = '';          
       
 
-      var oauth_options = Object.create(api_options) // options for 3-leg oauth requests  
-      oauth_options.legSBS = '';                     // signature base string 
-      oauth_options.legAH = '';                      // authorization header string
-      oauth_options.legHost = '';                    
-      oauth_options.legPath = '';
-      oauth_options.legMethod = '';
-      
-      var options = Object.create(oauth_options)     // HTTP server request options
-      options.host = "";
-      options.path = "";
-      options.method = "";
-      options.headers = "";
-      options.key = "";
-      options.cert = "";
-     
-      this.eventNames = {                            // Names of events that are emited
-         insertUserToken: 'insertUserToken',
-         tokenFound: 'tokenFound'   
+         this.legSBS = '';                     // Signature base string for OAuth legs (steps)
+         this.legAH = '';                      // Authorization header string
+         this.legHost = '';                    
+         this.legPath = '';
+         this.legMethod = '';
+         
+         this.verSBS = ''                      // SBS for verify credentials
+         this.verAh = '';
+         this.verHost = '';
+         this.verPath = '';
+         this.verMethod = '';
       }
-   
-      this.init = function init(req, res, next){ 
+     
+     function addFinalParams(){                // Adds parameters that node.js uses when sending a request
+        addPhaseParams.call(this)         
+        this.host = "";
+        this.path = "";
+        this.method = "";
+        this.headers = "";
+        this.key = "";
+        this.cert = "";
+     }                                   
+
+     addFinalParams.call(options); 
+      
+     CustomError.call(this);
+     this.addCustomErrors({
+       twiz: '[twiz-server] ',
+       consumerKeyNotSet: "You must provide consumer_key which identifies your app",
+       consumerSecretNotSet: "You must provide consumer_secret which identifies your app",
+       certNotSet: "You must provide cert (certificate) used in https encription when connecting to twitter.",
+       keyNotSet: "You must provide key (private key) used in https encription when connecting to twitter",
+       requestNotSet: "You must provide request (read) stream",
+       responseNotSet: "You must provide response (write) stream",
+     })
+     
+     this.initOptions = function init(req, res, next){ 
          console.log("in INIT")
-                                             // Encompases server logic
+                                             // Encompases server logic 
          args.request  = req;
          args.response = res;
-         args.next     = next ;
+         args.next     = next;
 
          this.setUserParams(args, vault);    // Params needed for this lib to work
          if(this.isPreflight()) return;      // on preflighted requests stop here
@@ -139,31 +161,8 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
          this.setOptions(vault, reqHeaders, options);    // sets options used for twitter request
 
          this.setAppContext();
-         this.currentLeg = this.getCurrentLeg(options);
-         console.log('before EmitEvents')
-         this.EmitEvents(this.currentLeg);   // set action on listeners we emit              
-      }
+     }
 
-      this.oauth = function (tokenObj){         
-          this.setCurrentPhase(this.phases.Leg) // assume that phase is one of oauth 3-leg (no access token)
-          console.log('in oauth');
-
-          if(tokenObj){
-            this.checkAccesToken(tokenObj)           // check object for access_token values
-             vault.accessToken = tokenObj;          // Put token object in vault
-                                                    // Since we have user token, we can go for twitter api call
-             this.currentPhase !== 'AccessProtectedResources' ? this.setCurrentPhase(this.phases.Api):  
-                                                                this.currentPhase;
-                                            // AccessProtectedResources is just like an 'api' call, but special
-                                            // in that we've hit all 3-legs of OAuth up to this point. 
-             console.log('currentLeg in api:', this.currentLeg)
-             console.log('currentPhase: ', this.currentPhase);
-          }                        
-          
-          this.sendRequest(vault, options, this.currentPhase); // Inserts needed tokens, signs the strings, sends
-                                                               // request 
-      }
-      
    };
    
    Options.prototype = Object.create(EventEmitter.prototype) // link EE prototype
@@ -198,7 +197,7 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
       }
       
       this.checkAllParams(vault); // checks that all important params are in place
-     
+      
    };
 
    Options.prototype.checkAllParams = function (vault){
@@ -207,40 +206,28 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
          
          switch(name){
             case "request":
-               if(!this[name]) throw new Error(this.messages.requestNotSet);
+               if(!this[name]) throw this.CustomError('requestNotSet');
             break;
             case "responce":
-               if(!this[name]) throw new Error(this.messages.responceNotSet);
+               if(!this[name]) throw this.CustomError('responseNotSet');
             break;
             case "key":
-               if(!vault[name]) throw new Error(this.messages.keyNotSet);
+               if(!vault[name]) throw this.CustomError('keyNotSet');
             break;
             case "cert":
-               if(!vault[name]) throw new Error(this.messages.certNotSet);
+               if(!vault[name]) throw this.CustomError('certNotSet');
             break;
             case "consumer_key":
-               if(!vault[name]) throw new Error(this.messages.consumerKeyNotSet);
+               if(!vault[name]) throw this.CustomError('consumerKeyNotSet');
             break;
             case "consumer_secret":
-               if(!vault[name]) throw new Error(this.messages.consumerSecretNotSet);
+               if(!vault[name]) throw this.CustomError('consumerSecretNotSet');
             break;
             //for now we dont check for this.next (for compatibility with other frameworks)
          }
       }
    }
    
-   Options.prototype.messages = {
-      twiz: '[twiz-server] ',
-      consumerKeyNotSet: "You must provide consumer_key which identifies your app",
-      consumerSecretNotSet: "You must provide consumer_secret which identifies your app",
-      certNotSet: "You must provide cert (certificate) used in https encription when connecting to twitter.",
-      keyNotSet: "You must provide key (private key) used in https encription when connecting to twitter",
-      requestNotSet: "You must provide request (read) stream",
-      responseNotSet: "You must provide response (write) stream",
-      oaTokenMissing: "oauth_token is missing",
-      oaTokenSecretMissing: "oauth_token_secret is missing"
-   }
-
    Options.prototype.getOptions = function(reqHeaders){ // gets params from query portion of request url
       this.sentOptions = url.parse(this.request.url, true).query // parses options sent in client request url
       console.log('sentOptions: ', this.sentOptions);
@@ -291,34 +278,7 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
          console.log('Connect confirmed')         
       }
   };
-
-  Options.prototype.getCurrentLeg = function(options){ // reads in what oauth leg we are
-     var leg = options.legPath; 
-     return leg.substr(leg.indexOf('/',1) + 1);// for exemple it gets 'request_token' from '/oauth/request_token' 
-  }
- 
-  Options.prototype.EmitEvents = function(currentLeg){ 
-     console.log('newListeners')
-     console.log('currentLeg: ', currentLeg)
-      switch(currentLeg){
-        case 'request_token': console.log('insertUserToken')
-          this.app.emit(this.eventNames.insertUserToken, this.oauth.bind(this)) 
-        break;
-        case 'access_token':  console.log('tokenFound')
-          this.oauth();   // just start access_token search since it wasnt passed on request_token leg   
-        break;
-      }
-  } 
-
-  
-  Options.prototype.finalizeOptions = function(options, pref){ // sets final options that we send in twitter req 
-      options.host    = options[pref + 'Host']; // when you start sending pref+ Host in  queryString
-      options.path    = options[pref + 'Path'];
-      options.method  = options[pref + 'Method'];
-
-      options.headers.authorization = options[pref + 'AH']; // sets authorization header 
-  }
-  
+    
   Options.prototype.isPreflight = function() { // has to go as saparate middleware
       var preflight; console.log('Preflight: method:', this.request.method);
       if (this.request.method == "OPTIONS"){  // Both needs to be plased for PREFLIGHT
@@ -353,76 +313,84 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
   
    }
 
-  function OAuth(args){
-     Options.call(this, args)
-     // this.initOptions(req, res, next)
+  function OAuth(){
+     CustomError.call(OAuth);
+     OAuth.addCustomErrors({
+        oauthTokenMissing: "oauth_token is missing",
+        oauthTokenSecretMissing: "oauth_token_secret is missing"
+     })
+    
+
   }
 
   OAuth.prototype = Object.create(Options.prototype);
+  
+  OAuth.safeKeepAccessToken = function(tokenObj, vault){ // if we have access token data , keep it in vault
+      if(tokenObj){
+         this.checkAccessToken(tokenObj);
+         vault.accessToken = tokenObj;
+      }
 
-  OAuth.prototype.checkAccesToken = function(tokenObj){
-      var error;
-      var generalInfo =  this.messages.twiz + this.currentLeg + ' leg: ';
+  }
+  OAuth.checkAccessToken = function(tokenObj){           // check token object for access token data
  
       if(!tokenObj.oauth_token) {
-         error = JSON.stringify({
-            error: generalInfo + this.messages.oaTokenMissing 
-         })
-         this.next(new Error(error))
-         return;
+         throw this.CustomError('oauthTokenMissing')     
       }
       
       if(!tokenObj.oauth_token_secret) {
-         error = JSON.stringify({ 
-            error: generalInfo + this.messages.oaTokenSecretMissing 
-         })
-         this.next(new Error(error));
-         return
+         throw this.CustomError('oauthTokenSecretMissing');
       } 
-
-      return true; // all tokens are present
    }
 
-   OAuth.prototype.insertConsumerKey = function(vault, options, pref){// insert missing consumer key in 
-                                                                               // SBS and AHS
+   OAuth.prototype.insertConsumerKey = function(vault, options, phase){// insert missing consumer key in 
+                                                                       // SBS and AHS
 
       var consumer_key = options.missingVal_SBS.consumer_key;// get consumer key name (as it stands in OAuth Spec
       var value = vault.consumer_key;                        // Get value of consumer key from vault 
       
-      options.SBS_AHS_insert(pref, consumer_key, value)   // insert consumer key to SBS and AHS
+      options.SBS_AHS_insert(phase, consumer_key, value)   // insert consumer key to SBS and AHS
    };
 
-   OAuth.prototype.insertToken = function(vault, options, pref){
+   OAuth.prototype.insertAccessToken = function(vault, options, phase){
       var tokenName  = options.missingVal_SBS.token;       // take the key name
       var tokenValue = vault.accessToken.oauth_token;      // take the key value 
 
       console.log('missingVal_SBS.token: ', options.missingVal_SBS.token) 
-      options.SBS_AHS_insert(pref, tokenName, tokenValue); // insert token in SBS and AHS  
+      options.SBS_AHS_insert(phase, tokenName, tokenValue); // insert token in SBS and AHS  
    }
    
       
-   OAuth.prototype.insertSignature = function(vault, options, pref){ // creates signature and 
+   OAuth.prototype.insertSignature = function(vault, options, phase){ // creates signature and 
       var accessToken = vault.accessToken;                               // inserts it
                                                                          // into Authorization Header string
       var HmacSha1 = new hmacSha1('base64');                             // Create new hmac function
       var signingKey = percentEncode(vault.consumer_secret) + "&";       // Prepare consumer_secret
 
-      if(pref === 'api') signingKey = signingKey + percentEncode(accessToken.oauth_token_secret); 
+      if(phase === 'api') signingKey = signingKey + percentEncode(accessToken.oauth_token_secret); 
                                                                                               // on api calls
                                                                                               // add token_secret
 
-      var sbs = options[pref + 'SBS'];                           // get SBS
+      var sbs = options[phase + 'SBS'];                           // get SBS
       var signature = HmacSha1.digest(signingKey, sbs);          // calculates oauth_signature
 
       
-      var ahs = options[pref + 'AH'];                            // get ah
+      var ahs = options[phase + 'AH'];                            // get ah
       var key = options.missingVal_AHS.signature;                // take key name 
-      options[pref + 'AH'] = options.insertKey(ahs, options.missingVal_AHS, key, signature, true); 
+      options[phase + 'AH'] = options.insertKey(ahs, options.missingVal_AHS, key, signature, true); 
                                                                          // inserts signature into AHS
       console.log(" SIGNATURE: " + signature);
-      console.log(" AHS: " + options[pref + 'AH']); 
+      console.log(" AHS: " + options[phase + 'AH']); 
    };
 
+   OAuth.prototype.finalizeOptions = function(options, phase){ // sets final options that we send in twitter req 
+      options.host    = options[phase + 'Host']; // when you start sending pref+ Host in  queryString
+      options.path    = options[phase + 'Path'];
+      options.method  = options[phase + 'Method'];
+ 
+      options.headers.authorization = options[phase + 'AH']; // sets authorization header 
+  }
+/*
    function ClientRequest(args){
       OAuth.call(this, args);
    }
@@ -475,18 +443,29 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
           this.send(options, pref, vault);     // Sends request to twitter
      }.bind(this)); // Async function loose "this" context, binding it in order not to lose it.
    }
+*/
 
-   function TwitterProxy(args){
-      ClientRequest.call(this, args);
+   function TwitterProxy(req, res, next){ // req, res, options
+      this.request  = req;
+      this.response = res;
+      this.next     = next;
      
       this.headerFix = {
         textHtml : 'application/x-www-url-formencoded;charset=utf-8'
       }
-   }   
-  
-   TwitterProxy.prototype = Object.create(ClientRequest.prototype);
 
-   TwitterProxy.prototype.send = function(options, pref, vault){
+      this.twtRequest;
+      this.twtResponse;
+
+   }   
+   TwitterProxy.prototype.createTwtRequest = function(options, twtResponseHandler){ // creates request we'll send
+      this.twtRequest = https.request(options, function(res){                       // to Twitter
+          this.twtResponse = res;
+          twtResponseHandler();
+      }.bind(this))
+   }
+
+   TwitterProxy.prototype.send = function(options, phase, vault){
         vault.twitterData = ''; // twitter response data (should be Buffer)
         var twtRequest = https.request(options, function(twtResponse){
  
@@ -515,7 +494,7 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
 
         }.bind(this))
 
-        if(pref === 'api' && vault.body){
+        if(phase === 'api' && vault.body){
             console.log('request.content-type: ', this.request.headers['content-type']);
             console.log('request.content-length: ', this.request.headers['content-length']);
             console.log('request.body: ', vault.body);
@@ -544,142 +523,363 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
         }); // sends request to twtter
    };
    
-   TwitterProxy.prototype.onFailure = function(twtResponse){
+  /* TwitterProxy.prototype.twtRequestSetBody = function(vault){ // 'api' requests
+       if(vault.body){
+          this.twtRequest.setHeader('TransferEncoding','chunked');
+          this.twtRequest.write(vault.body);
+       {  
+   }
+  */
+
+   TwitterProxy.prototype.twtRequestOnError = function(){ // all
+
+      this.twtRequest.on('error', function(err){ this.next(err) }.bind(this))
+   }
+
+   TwitterProxy.prototype.twtRequestSend = function(twtRequest){     // all
+
+      this.twtRequest.end(function(){
+
+            console.log('proxyRequest.headers:');
+            console.log('pR.content-type:', this.twtRequest.getHeader('content-type'))
+            console.log('pR.TE:', this.twtRequest.getHeader('TE'));
+            
+            console.log('pR.content-length:', this.twtRequest.getHeader('content-length'))
+            console.log('pR.content-encoding', this.twtRequest.getHeader('content-encoding'))
+
+            console.log('pR.transfer-encoding:', this.twtRequest.getHeader('transfer-encoding'))// shouldnt have one
+            
+      }.bind(this)); // sends request to twtter
+
+
+   }
+
+   TwitterProxy.prototype.twtResponseOnFailure = function(phase){ // all responce
+       console.log('statusCode:', this.twtResponse.statusCode );
+      if(this.twtResponse.statusCode === 200) return false;
+
       console.log('in onFailure')
-      console.log('content-type (before) : ', twtResponse.headers['content-type'])
+      console.log('content-type (before) : ', this.twtResponse.headers['content-type'])
       
-      if(this.currentLeg === 'request_token' || this.currentLeg === 'access_token'){// when error is some oauth
-                                                              // leg, twitter send content-type=application/json                                                                             // but body is actually form encoded
-        twtResponse.headers['content-type'] = this.headerFix.textHtml; // Fix for twitter's incorect content-type,
+      if(phase ==='leg'){          // when error is some oauth
+                                   // leg, twitter send content-type=application/json
+                                   // but body is actually form encoded
+        this.twtResponse.headers['content-type'] = this.headerFix.textHtml; // Fix for twitter's incorect content-type,
       }                                                               // on entitty-body that is actualy 
                                                                      // formencoded
-      twtResponse.on('data', function(data){
-        console.log('failure body:', data)  
+      this.twtResponse.on('data', function(data){
+        console.log('failure body:', data.toString('utf8'))  
       })
-      console.log('currentLeg: ', this.currentLeg)
-      console.log('content-type: ',twtResponse.headers['content-type'])
 
-      this.response.writeHead(twtResponse.statusCode, twtResponse.statusMessage, twtResponse.headers)
+      console.log('content-type: ', this.twtResponse.headers['content-type'])
 
-      twtResponse.pipe(this.response);              // pipe response to clent response
+      this.response.writeHead(this.twtResponse.statusCode, this.twtResponse.statusMessage, this.twtResponse.headers)// redo with     write so it doesnt reset previously sett headers (from other middlewears)
+
+      this.twtResponse.pipe(this.response);              // pipe response to clent response
         console.log('before errorHandler');
-      twtResponse.on('error', this.errorHandler.bind(this));  // on error, call next(err)
-   }
-
-   TwitterProxy.prototype.setResponseHeaders = function(twtResponse){
-      // set status line 
-
-      var headers = twtResponse.headers;
- 
-      // hack for twitter's incorect(?) content-type=text/html response in request token step
-      if(this.currentLeg === 'request_token') headers['content-type'] = this.headerFix.textHtml; //application                                                                                                  // /x-www-url-e
-       
-      this.response.writeHead(twtResponse.statusCode, twtResponse.statusMessage, headers);
-   }
-
-   TwitterProxy.prototype.errorHandler = function(err){
-     console.log('twtResponse error:', err)
-     this.next(err);
+      this.twtResponse.on('error', function(err){console.log('twtResponse error:', err); this.next()}.bind(this));     return true
    }
    
-   TwitterProxy.prototype.receiveBody = function(twtResponse, vault){
-      twtResponse.on('data', function(data){
+   TwitterProxy.prototype.twtResponsePipeBack = function(){  // all (not access token)
+      this.setResponseHeaders();
+      this.twtResponse.pipe(this.response) // pipe it back to client
+   }
+ 
+   TwitterProxy.prototype.setResponseHeaders = function(){  // all responce (exept access_token) 
+
+      var headers = this.twtResponse.headers;
+ 
+      // hack for twitter's incorect(?) content-type=text/html response in request token step
+    //  if(this.currentLeg === 'request_token') headers['content-type'] = this.headerFix.textHtml; //application                                                                                                  // /x-www-url-e
+       
+      this.response.writeHead(this.twtResponse.statusCode, this.twtResponse.statusMessage, headers);
+   }
+
+   TwitterProxy.prototype.twtResponseOnError = function(){ // all response
+      this.twtResponse.on('err', function(err){
+           console.log('twtResponse error: ', err);
+           this.next(err)
+      }.bind(this))
+   }
+   
+   TwitterProxy.prototype.twtResponseReceiveBody = function(vault){ // all access_token
+      this.twtResponse.on('data', function(data){
          console.log(" twitter responded: ", data);
          vault.twitterData += data;                    // makes 
       })
    }
-   
-   TwitterProxy.prototype.accessTokenEnd = function(vault){
+
+   TwitterProxy.prototype.twtResponseOnEnd = function(func){
+
+       this.twtResponse.on('end', func());
+   }
+/*
+   TwitterProxy.prototype.accessTokenEnd = function(vault){ // access_token
      this.accessProtectedResources(vault)
      this.app.emit(this.eventNames.tokenFound, Promise.resolve(vault.accessToken)) // calls user func with token
    }
    
-   TwitterProxy.prototype.accessProtectedResources = function(vault){
+   TwitterProxy.prototype.accessProtectedResources = function(vault){ // access_token send
       this.prepareAccess(vault);
       console.log('in access protected resources')
       this.oauth(vault.accessToken);
 
    }
-
-   TwitterProxy.prototype.prepareAccess = function(vault){
-      this.setCurrentPhase(this.phases.AccessProtectedResources); // indicate that we've hit all 3-legs of OAuth
+*/
+   TwitterProxy.prototype.twtResponseParseBody = function(vault){ // access_token send
+      //this.setCurrentPhase(this.phases.AccessProtectedResources); // indicate that we've hit all 3-legs of OAuth
                                                                   // up to this point 
-      var accessToken = vault.twitterData;
+      var data = vault.twitterData;
       try{                                    // try parsing access token
-        accessToken = JSON.parse(accessToken);  
+        data = JSON.parse(data);  
       }
       catch(er){ 
-        accessToken = url.parse("?" + accessToken, true).query // simple hack for parsing twitter's access token 
+        data = url.parse("?" + data, true).query // simple hack for parsing twitter's access token 
                                                                // string (that is form-encoded)
         console.log('url parsed accessToken:', accessToken);
       }
       
-      vault.accessToken = accessToken; 
+      vault.twitterData = data ; 
       
    }
    
-   function twizServer(args) {
-     TwitterProxy.call(this, args);
+
+   function PhaseBuilder(options, vault, args){
+     
+     Options.call(this, options, vault, args);
+
+     this.leg = ['request_token', '', 'accessToken'] // Oauth leg (step) names
+     
+     this.phases = {
+       leg: {                                 
+          toString: function(){ return 'leg' },
+          requestToken: this.leg[0],
+          accessToken : this.leg[2] 
+       },
        
+       api:{
+          toString: function(){ return 'api' },
+          plain: 'api',
+          verifyCred: 'ver',
+          accessProtectedResorces: 'APR'  
+       }   
+     }
+
+     this.Phase = function Phase(){
+       this.name   = '';
+       this.action = '';
+       this.signRequest = '';
+       this.proxyRequest = '';
+     }
+
+     
+     this.legPhase = new this.Phase();
+     this.apiPhase = new this.Phase();
+
+     this.initPhases = function (req, res, next){
+     
+        this.initOptions(req, res, next); // initOptions
+        this.setPhases(options);
+     }
+
    }
-   twizServer.prototype = Object.create(TwitterProxy.prototype) 
-  /*
-      twtOAuthServer.prototype.genHeaderString = function(vault){
-      var a = [];
-       
-      for(var name in this.oauth){
-          a.push(name);
+
+   PhaseBuilder.prototype = Object.create(Options.prototype); 
+  
+   PhaseBuilder.prototype.setPhases = function(options){ 
+     
+      this.setPhase(this.legPhase, this.phases.leg, this.getCurrentLegAction(options)) // set current phase
+      this.setPhase(this.apiPhase, this.phases.api, this.phases.api.plain)         // set next phase
+      
+   }
+
+   PhaseBuilder.prototype.setPhase = function(phase, name, action){ // setlegPhase(this.phases.leg,
+                                                                         // this.phases.leg.requestToken
+      phase.name   = name.toString();
+      phase.action = action; 
+      phase.signRequest = new OAuth();
+      phase.proxyRequest = new TwitterProxy(this.request, this.response, this.next);
+   }
+
+   PhaseBuilder.prototype.getCurrentLegAction = function(options){
+      console.log('legPath: ', options.legPath) 
+      var path = options.legPath;
+      var action;
+  
+      for(var i = path.length; i >= 0; i--){
+        if(path.charAt(i) === '/'){
+          action = path.substring(i+1);
+          break;
+        }
       }
-      console.log("a; "+ a);
-      a.sort(); // aphabeticaly sort array of property names
-      var headerString = this.leadPrefix; // Addign "OAuth " in front everthing
-      var key;
-      var value;
-      var keyValue;
-      for(var i = 0; i < a.length; i++){  // iterate oauth by sorted way 
-         
-          key = a[i];                                    // Take the key name
+  
+      this.isLegActionValid(action);
+      return action;
+   }
+   
+   PhaseBuilder.prototype.isLegActionValid = function(action){
+  
+      var valid =  (action === this.leg[0] || action === this.leg[2]);
+      if(!valid) throw new Error('OAuth leg sent by client not recoginized')
+  
+   } 
 
-          if(key === "consumer_key") value = vault.consumer_key; // get value from vault
-          else value = this.oauth[key];                         // get it from aouth object
+    //*/
+   function PhaseConfigurator (args){
+
+      var vault = {};
+      var options = {};
       
-          key = this.headerPrefix + percentEncode(key);  // addig prefix to every key;
-          value = "\"" + percentEncode(value) + "\"";    // adding double quotes to value
-          
-          keyValue = key + "=" + value;                  // adding "=" between
-          if(i !== (a.length - 1)) keyValue = keyValue + ", " // add trailing comma and space, until end
+      PhaseBuilder.call(this, options, vault, args)
 
-          headerString += keyValue;       
+      this.alternator = {
+         run: function(tokenObj){
+
+             OAuth.safeKeepAccessToken(tokenObj, vault); // safe keep token in vault
+             this.switch_()
+         },
+         switch_: function(){
+
+            if(vault.accessToken) this.apiPhase.run();
+            else this.legPhase.run() ;
+         },
+         legPhase: this.legPhase,
+         apiPhase: this.apiPhase
+      }
+
+
+      this.startAlternator  = function(req, res, next){ console.log("express params: ",(req && res &&  next))
+         this.initPhases(req, res, next);
+         this.configurePhases(this.alternator.legPhase.action, options, vault);        
+         this.emitPhaseEvents(this.alternator);
+      }
+
+   }
+
+   PhaseConfigurator.prototype = Object.create(PhaseBuilder.prototype)
+
+   PhaseConfigurator.prototype.configurePhases = function (action, options, vault){
+      
+
+      if(action === this.leg[0]) // request_token 
+       this.addRequestTokenRun(this.alternator, options, vault); 
+ 
+      if(action === this.leg[2]) // access_token
+       this.promisifyAccessTokenRun(this.alternator, options, vault);
+   }      
+      
+   PhaseConfigurator.prototype.addRequestTokenRun = function(alternator, options, vault){
+
+      var legPhase = alternator.legPhase;
+      var apiPhase = alternator.apiPhase
+
+      legPhase.run = function(){
+         console.log('leg.phase run' + this.name, this.action)
+         this.signRequest.run(this.action);
+         this.proxyRequest.run(this.phase);
       } 
-      console.log("header string: " + headerString); 
-   }
-   
-   twtOAuthServer.prototype.setNonUserParams = function(){ // sets all "calculated" oauth params 
-     // this.setSignatureMethod();
-     // this.setNonce();
-     // this.setTimestamp();
-     // this.setVersion();
-   }
-   
-   twtOAuthServer.prototype.genSigningKey = function(csecret, usecret){// Generates signing keys used by hmacSha1 
-                                                                  // function.
-      var key = "";
-      if(cs) key += percentEncode(cs) + "&";
-      if(us) key += percentEncode(us) + "&";
-        
-      return key; 
-   }
-   
-   twtOAuthServer.prototype.setTimestamp = function(){
-     this.oauth.timestamp = Date.now() / 1000 | 0;// cuting off decimal part by converting it to 32 bit integer
-                                                  // in bitwise OR operation. 
-   }
-*/
-   module.exports =  function(args){
-     return function(){
       
-        var r = new twizServer(args); 
-        return r.init.bind(r);
+      legPhase.signRequest.run = function(action){
+                                                            // new OAuth
+         this.insertConsumerKey(vault, options, action);
+         this.insertSignature(vault, options, action);
+         this.finalizeOptions(options, action);
+      }
+ 
+      legPhase.proxyRequest.run = function(phase){
+         
+         this.twtResponseHandler =  function(){   // Handle response from twitter
+             console.log('twtResponse content-type: ', this.twtResponse.headers['content-type']);
+             console.log('twtResponse statusCode: ', this.twtResponse.statusCode);
+             console.log('twtResponse statusMessage: ', this.twtResponse.statusMessage);
+             console.log('twtResponse headers: ', this.twtResponse.headers);
+
+             this.twtResponseOnError();                            // Handle any response errors
+             if(this.twtResponseOnFailure(phase)) return;          // if response didn't have desired outcome
+
+             this.twtResponsePipeBack();
+         }                 
+
+         this.createTwtRequest(options, this.twtResponseHandler.bind(this)); // Create request we send to twitter
+         this.twtRequestOnError();                                // Handle any request error
+         this.twtRequestSend();                                   // Send request 
+         
+      }   
+
+                 
+         
+      apiPhase.run = legPhase.run; // same phase run
+            
+      apiPhase.signRequest.run = function(action){
+
+         this.insertConsumerKey(vault, options, action);
+         this.insertAccessToken(vault, options, action)
+         this.insertSignature(vault, options, action);
+         this.finalizeOptions(options, action);  
+      }
+           
+      apiPhase.proxyRequest.run = legPhase.proxyRequest.run;  // same proxyRequest run
+  }
+
+  PhaseConfigurator.prototype.addAccessTokenRun = function(resolve, alternator, options, vault){
+
+     this.addRequestTokenRun(alternator);
+     
+     var legPhase = alternator.legPhase;
+     var apiPhase = alternator.apiPhase;
+     console.log('access_token phase', phase)
+     apiPhase.proxyRequest = legPhase.proxyRequest;                                   
+    
+     legPhase.proxyRequest.twtResponseHandler = function(){
+
+        this.twtResponseOnError()
+        if(this.twtResponseOnFailure()) return;
+
+        this.twtResponseReceiveBody(vault);
+        this.twtResponceOnEnd(this.finish.bind(this))
+
+        this.finish = function(){
+
+           this.twtResponseParseBody(vault); 
+           alternator.run(vault.twtData); // makes alternator run again
+           resolve(vault.twtData);        // resolves a promise for access token run
+        }
+     }
+          
+
+  }
+   
+  PhaseConfigurator.prototype.promisifyAccessTokenRun = function(){ // maybe put resolve in leg
+     this.accessTokenPromise =  new Promise(function(resolve,reject){
+        this.addAccessTokenRun(resolve, this.alternator)
+     }.bind(this))
+  }
+
+  PhaseBuilder.prototype.emitPhaseEvents =  function(alternator){ 
+     console.log('this.alternator.legPhase.action: ', alternator.legPhase.action);
+     
+      switch(alternator.legPhase.action){
+        case 'request_token': console.log('loadAccessToken')
+          this.app.emit(this.eventNames.loadAccessToken, this.alternator.run.bind(this.alternator)) // this.verifyCredentials()
+        break;
+        case 'access_token':  console.log('tokenFound')
+          this.app.emit(this.eventNames.tokenFound, this.accessTokenPromise)
+        break;
+      }
+  }
+  
+  PhaseConfigurator.prototype.eventNames = {                            // Names of events that are emited
+         loadAccessToken: 'loadAccessToken',
+         tokenFound: 'tokenFound'   
+  }
+
+
+  
+   module.exports =  function(args){
+     return function twizServer(){
+      
+        var pc = new PhaseConfigurator(args); 
+        return pc.startAlternator.bind(pc);
      } 
    }
 
