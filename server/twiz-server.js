@@ -285,7 +285,7 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
         this.response.setHeader("Access-Control-Allow-Headers","content-type , authorization");
         this.response.setHeader("Access-Control-Allow-Origin", "https://gits2501.github.io");
       }
-      else{
+      else {
         this.response.setHeader("Access-Control-Allow-Origin","https://gits2501.github.io"); // Other (no preflight) can have just this.
         // this.response.setHeader("Content-Type", "application/json");
         return preflight;
@@ -330,10 +330,11 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
       }
       else vault.accessToken = '';
   }
+
   OAuth.checkAccessToken = function(tokenObj){           // check token object for access token data
  
       if(!tokenObj.oauth_token) {
-         throw this.CustomError('oauthTokenMissing')     
+         throw this.CustomError('oauthTokenMissing');     
       }
       
       if(!tokenObj.oauth_token_secret) {
@@ -365,9 +366,9 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
       var HmacSha1 = new hmacSha1('base64');                             // Create new hmac function
       var signingKey = percentEncode(vault.consumer_secret) + "&";       // Prepare consumer_secret
 
-      if(phase === 'api') signingKey = signingKey + percentEncode(accessToken.oauth_token_secret); 
-                                                                                              // on api calls
-                                                                                              // add token_secret
+      if(phase !== 'leg') signingKey = signingKey + percentEncode(accessToken.oauth_token_secret); 
+                                                                                          // on non OAuth calls
+                                                                                          // add token_secret
 
       var sbs = options[phase + 'SBS'];                           // get SBS
       var signature = HmacSha1.digest(signingKey, sbs);          // calculates oauth_signature
@@ -389,8 +390,7 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
       options.headers.authorization = options[phase + 'AH']; // sets authorization header 
   }
 
-   function TwitterProxy(req, res, next){ // req, res, options
-     //  this.request  = req;
+   function TwitterProxy(res, next){ // 
       this.response = res;
       this.next     = next;
      
@@ -400,7 +400,6 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
 
       this.twtRequest;
       this.twtResponse;
-
    }   
 
    TwitterProxy.prototype.createTwtRequest = function(options, twtResponseHandler){ // creates request we'll send
@@ -529,12 +528,12 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
    }
 
    TwitterProxy.prototype.twtResponseOnEnd = function(func){
-
+       
        this.twtResponse.on('end', func);
    }
 
    TwitterProxy.prototype.twtResponseParseBody = function(vault){ // 
-
+      
       var data = vault.twtData; console.log('vault.twtData:', vault.twtData)
       try{                                    // try parsing access token
         data = JSON.parse(data);  
@@ -557,28 +556,31 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
      this.leg = ['request_token', '', 'access_token'] // Oauth leg (step) names
      
      this.phases = {
-       leg: {                                 
+       leg: {                                    // OAuth leg phase with each leg (step)
           toString: function(){ return 'leg' },
           requestToken: this.leg[0],
           accessToken : this.leg[2] 
        },
        
-       api:{
+       api:{                                    // Twitter api calls phase (when we have access token)
           toString: function(){ return 'api' },
           plain: 'api',
-          verCredentials: 'ver',
           accessProtectedResorces: 'APR'  
+       },
+
+       verCredentials:{
+         toString: function(){ return 'ver'},
+         plain: 'ver'
        }   
      }
 
-     this.Phase = function Phase(name, action){
+     this.Phase = function Phase(name, action, res, next){
        this.name   = name.toString();
        this.action = action;
        this.signRequest  = new OAuth();
-       this.proxyRequest = new TwitterProxy(this.request, this.response, this.next);
+       this.proxyRequest = new TwitterProxy(res, next);
      }
 
-     
      this.legPhase;
      this.apiPhase;
 
@@ -586,8 +588,8 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
      
         this.initOptions(req, res, next); // initOptions
       
-        this.legPhase = new this.Phase(this.phases.leg, this.getCurrentLegAction(options)) // set current phase
-        this.apiPhase = new this.Phase(this.phases.api, this.phases.api.plain)         // set next phase
+        this.legPhase = new this.Phase(this.phases.leg, this.getCurrentLegAction(options), this.response, this.next) // set current phase
+        this.apiPhase = new this.Phase(this.phases.api, this.phases.api.plain, this.response, this.next)         // set next phase
      }
 
    }
@@ -606,7 +608,7 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
         }
       }
   
-      this.isLegActionValid(action);
+      this.isLegActionValid(action); console.log('action:', action)
       return action;
    }
    
@@ -619,7 +621,6 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
 
     //*/
    function PhaseConfigurator (args){
-
       var vault = {};
       var options = {};
       
@@ -637,25 +638,33 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
             else this.legPhase.run() ;
          },
 
-         legPhase: this.legPhase,
-         apiPhase: this.apiPhase,
+         legPhase: '',
+         apiPhase: '',
       }
 
+      this.addWorkSpace.call(this.alternator);
 
       this.startAlternator  = function(req, res, next){ console.time('t')
-         this.initPhases(req, res, next);
+         this.initPhases(req, res, next); 
+         this.alternator.load({ legPhase: this.legPhase, apiPhase: this.apiPhase })
+            console.log(' startAlternator this.alternator:', this.alternator)
          this.configurePhases(this.alternator.legPhase.action, options, vault);        
          this.emitPhaseEvents(options, vault);
       }
-
+     
+     
+      CustomError.call(this);
+      this.addCustomErrors({
+         'accessTokenMissing': 'verify credentials must be called with an access token object',
+      })
    }
+
    PhaseConfigurator.vault;
    PhaseConfigurator.options;
 
    PhaseConfigurator.prototype = Object.create(PhaseBuilder.prototype)
 
    PhaseConfigurator.prototype.configurePhases = function (action, options, vault){
-      
 
       if(action === this.leg[0]) // request_token 
         this.addRequestTokenRun(options, vault); 
@@ -668,13 +677,12 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
    PhaseConfigurator.prototype.addRequestTokenRun = function(options, vault){
       var legPhase = this.alternator.legPhase;
       var apiPhase = this.alternator.apiPhase;
-
       legPhase.run = function(){                                 // adding set of jobs (runs) for this phase
          console.log('leg.phase run: ', this.name, this.action)
          this.signRequest.run(this.name);
          this.proxyRequest.run(this.name, this.action);
       } 
-      
+      console.log('legPhase.signRequest:', legPhase.signRequest)
       legPhase.signRequest.run = function(phase){
                                                     // new OAuth
   
@@ -726,7 +734,7 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
       apiPhase.proxyRequest.run = legPhase.proxyRequest.run
       apiPhase.proxyRequest.handleResponse = legPhase.proxyRequest.handleResponse // same response handler 
       apiPhase.proxyRequest.sendRequest = legPhase.proxyRequest.sendRequest // same response handler 
-    
+   
   }
 
   PhaseConfigurator.prototype.addAccessTokenRun = function(options, vault, resolve){
@@ -764,8 +772,8 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
   }
  
   PhaseConfigurator.prototype.promisify = function(func){ //
-     return  new Promise(function(resolve,reject){
-        func(resolve);
+     return  new Promise(function(resolve, reject){
+        func(resolve, reject);
      })
   }
 
@@ -776,8 +784,9 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
         case this.leg[0] : console.log('loadAccessToken')
           this.app.emit(this.eventNames.loadAccessToken, 
                         this.alternator.run.bind(this.alternator),
-                        this.checkAccessToken.bind(this, options, vault)
+                        this.verAccessToken.bind(this, options, vault)
           );
+        break;
         case this.leg[2] :  console.log('tokenFound')
           this.app.emit(this.eventNames.tokenFound, this.accessTokenPromise) // pass promise to listener
           alternator.run(); // run the access token leg
@@ -797,25 +806,27 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
          this.save = function(s){
             
             this.savePhases(s);
-            this.savePhasesRun(s); 
+            this.savePhaseRuns(s); 
          }
         
          this.savePhases = function(s){
-            this.saved.legPhase = s.legPhase;
-            this.saved.apiPhase = s.apiPhase;
+            if(s.legPhase) this.saved.legPhase = s.legPhase;
+            if(s.apiPhase) this.saved.apiPhase = s.apiPhase;
          }
          
-         this.savePhaseRuns = function(s){
-            this.saved.legRun = s.legRun;
-            this.saved.apiRun = s.apiRun;
+         this.savePhaseRuns = function(s){               // save Phase runs
+            if(s.legPhase) this.saved.legRun = s.legRun;
+            if(s.apiPhase) this.saved.apiRun = s.apiRun;
          }
 
-         this.changePhase = function(phase, newPhase){
-            phase = newPhase;
+         this.changePhase = function(c){                 // change alternator phases
+            if(c.legPhase) this.legPhase = c.legPhase;
+            if(c.apiPhase) this.apiPhase = c.apiPhase
          }
          
-         this.changePhaseRun = function(phase, newRun){
-            phase.run = newRun;            
+         this.changePhaseRun = function(c){
+            if(c.legRun) this.legPhase.run = c.legRun;
+            if(c.apiRun) this.apiPhase.run = c.apiRun;            
          }  
          
          this.load = function(l){
@@ -836,50 +847,70 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
         // this.load = function ()...  same as save , same input object
   }
   
-  PhaseConfigurator.prototype.checkAccessToken = function(options, vault, tokenObj){
+  PhaseConfigurator.prototype.verAccessToken = function(options, vault, tokenObj){ console.log('in verCredentials')
      return this.promisify(this.verCredentials.bind(this, options, vault, tokenObj))
   }
 
-  PhaseConfigurator.prototype.verCredentials = function(options, vault, tokenObj, resolve){ // run phase that verifies access token
+  PhaseConfigurator.prototype.verCredentials = function(options, vault, tokenObj, resolve, reject){ // run phase that verifies access token
 
-     this.addWorkSpace(this.alternator) // adds tools to manage alternator state
-     this.alternator.save({ legPhase: this.legPhase, apiRun: this.apiPhase.run }); // save legPhase and apiRun
+   //  this.addWorkSpace(this.alternator) // adds tools to manage alternator state
+     this.alternator.save({ legRun: this.legPhase.run, apiPhase: this.apiPhase }); // save apiPhase and legRun
                                                                                    // before we change them
      
-     this.verCredentialsPhase = new this.Phase(this.phases.api, this.phases.api.verCredentials)// make new phase
-     this.alternator.changePhase(this.legPhase, this.verCredentialsPhase);  // add verCredentials as legPhase
+     this.verCredentialsPhase = new this.Phase(this.phases.verCredentials,
+                                               this.phases.verCredentials.plain, 
+                                               this.response, 
+                                               this.next)                  // make new phase
+
+     this.alternator.changePhase({ apiPhase: this.verCredentialsPhase });  // add verCredentials as apiPhase
      
-     this.addVerCredentialsRun(resolve, options, vault);   // add its run;
+     this.addVerCredentialsRun(options, vault, resolve, reject);   // add its run (actions);
      this.alternator.run(tokenObj); // runs the verCredentials phase
      
      var saved = this.alternator.saved                                         // things we saved
-     this.alternator.load({ legPhase: saved.legPhase, apiRun: saved.apiRun }); // load back what was saved so 
+     this.alternator.load({ apiPhase: saved.apiPhase, legRun: saved.legRun }); // load back before any changes
   }
 
 
-  PhaseConfigurator.prototype.addVerCredentialsRun = function(resolve, options, vault){
-     verCredentialsPhase = this.alternator.legPhase; // legPhase is verCredentials phase
-     apiPhase = this.alternator.apiPhase;            // need apiPhase which run was already added
-
-     verCredentialsPhase.run         = apiPhase.run;   // verCredentails has same set of runs as api phase
-     verCredentialsPhase.signRequest = apiPhase.signRequest.run;     
+  PhaseConfigurator.prototype.addVerCredentialsRun = function(options, vault, resolve, reject){
+     var legPhase            = this.alternator.legPhase;              // take current leg phase 
+     var verCredentialsPhase = this.alternator.apiPhase;              // the new (changed) apiPhase
+     var apiPhase            = this.alternator.saved.apiPhase;        // the old (saved) apiPhase
+ 
+     verCredentialsPhase.run         = apiPhase.run;      // much of the actions(runs) are same as in saved phase
+     verCredentialsPhase.signRequest.run = apiPhase.signRequest.run;     
      verCredentialsPhase.proxyRequest.run = apiPhase.proxyRequest.run;
+     verCredentialsPhase.proxyRequest.sendRequest = apiPhase.proxyRequest.sendRequest;
 
-     verCredentialsPhase.proxyRequest.handleResponse = function(data){ // we need new set of actions t
-         this.twtResponse.on('data', function(data){
-            console.log('verCredentials data: ', data.toString('utf8'));
-         })
+     verCredentialsPhase.proxyRequest.handleResponse = function(data){ // we need new handleResponse 
+          console.log('verCredentials')
+          console.log('twtResponse headers: ', this.twtResponse.headers);
+                       
+         this.twtResponseOnError();                       // handle error
+         this.twtResponseReceiveBody(vault, 'utf8');      // place body in vault       
+                 
+         this.verCredentialsEnd = function (){            // when response is received
 
-         this.twtResponse.on('end', function(){
-              console.log('verCredentials ended');
-             
-         }) // resolve it here
+            this.twtResponseParseBody(vault);             // parse the body to json
+            var credentials = vault.twtData;              // take credentials data
+            if(!credentials.errors){
+              resolve(credentials);                       // resolve credentials 
+              return;
+            }
+
+            console.log('verCredentials ended'); 
+            console.log(verCredentialsPhase.action + ' ENDED'); console.timeEnd('t')
+            reject(credentials);                          //   
+         
+         }.bind(this) // resolve it here
+       
+         this.twtResponseOnEnd(this.verCredentialsEnd)
      }  
      
-     apiPhase.run = function(){     // define new apiPhase run, as we dont go to apiPhase throw an error when
+     legPhase.run = function(){     // define new legPhase run, as we dont go to legPhase
                                     // when access token is  misssing (see alternator.switch_)
-        throw new Error('verCredentials must be called with access token argument');
-     }
+        throw this.CustomError('accessTokenMissing');
+     }.bind(this);
   }
 
   module.exports =  function(args){
