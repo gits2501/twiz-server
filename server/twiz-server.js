@@ -34,7 +34,7 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
        }
 
        this.CustomError = function(name){// uses built-in Error func to make custom err info
-          var err = Error(this.messages['name']);      // take message text
+          var err = Error(this.messages[name]);      // take message text
           err['name'] = name;                          // set error name
           return err; 
        }
@@ -655,7 +655,7 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
      
       CustomError.call(this);
       this.addCustomErrors({
-         'accessTokenMissing': 'verify credentials must be called with an access token object',
+         'accessTokenMissing': 'verify credentials must be called with an access token object'
       })
    }
 
@@ -909,7 +909,7 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
      
      legPhase.run = function(){     // define new legPhase run, as we dont go to legPhase
                                     // when access token is  misssing (see alternator.switch_)
-        throw this.CustomError('accessTokenMissing');
+        this.next(this.CustomError('accessTokenMissing'));
      }.bind(this);
   }
 
