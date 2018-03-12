@@ -400,6 +400,9 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
 
       this.twtRequest;
       this.twtResponse;
+
+      CustomError.call(this);
+      this.addCustomErrors({ accessTokenNotVerified: ''})
    }   
 
    TwitterProxy.prototype.createTwtRequest = function(options, twtResponseHandler){ // creates request we'll send
@@ -588,8 +591,8 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
      
         this.initOptions(req, res, next); // initOptions
       
-        this.legPhase = new this.Phase(this.phases.leg, this.getCurrentLegAction(options), this.response, this.next) // set current phase
-        this.apiPhase = new this.Phase(this.phases.api, this.phases.api.plain, this.response, this.next)         // set next phase
+        this.legPhase = new this.Phase(this.phases.leg, this.getCurrentLegAction(options), this.response, this.next) // set current oauth leg phase
+        this.apiPhase = new this.Phase(this.phases.api, this.phases.api.plain, this.response, this.next)         // set phase that will run if we have access token
      }
 
    }
@@ -597,7 +600,7 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
    PhaseBuilder.prototype = Object.create(Options.prototype); 
 
    PhaseBuilder.prototype.getCurrentLegAction = function(options){
-      console.log('legPath: ', options.legPath) 
+      console.log('legPath: ', options.legPath); 
       var path = options.legPath;
       var action;
   
@@ -649,13 +652,13 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
          this.alternator.load({ legPhase: this.legPhase, apiPhase: this.apiPhase })
             console.log(' startAlternator this.alternator:', this.alternator)
          this.configurePhases(this.alternator.legPhase.action, options, vault);        
-         this.emitPhaseEvents(options, vault);
+         this.emitPhaseEvents(options, vault); 
       }
      
      
       CustomError.call(this);
       this.addCustomErrors({
-         'accessTokenMissing': 'verify credentials must be called with an access token object'
+         'accessTokenMissing': 'To verify access token, function must be called with an access token object'
       })
    }
 
@@ -772,8 +775,8 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
   }
  
   PhaseConfigurator.prototype.promisify = function(func){ //
-     return  new Promise(function(resolve, reject){
-        func(resolve, reject);
+     return  new Promise(function(resolve){
+        func(resolve);
      })
   }
 
@@ -784,12 +787,12 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
         case this.leg[0] : console.log('loadAccessToken')
           this.app.emit(this.eventNames.loadAccessToken, 
                         this.alternator.run.bind(this.alternator),
-                        this.verAccessToken.bind(this, options, vault)
+                        this.verifyAccessToken.bind(this, options, vault)
           );
         break;
         case this.leg[2] :  console.log('tokenFound')
           this.app.emit(this.eventNames.tokenFound, this.accessTokenPromise) // pass promise to listener
-          alternator.run(); // run the access token leg
+          this.alternator.run(); // run the access token leg
         break;
       }
   }
@@ -847,11 +850,11 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
         // this.load = function ()...  same as save , same input object
   }
   
-  PhaseConfigurator.prototype.verAccessToken = function(options, vault, tokenObj){ console.log('in verCredentials')
+  PhaseConfigurator.prototype.verifyAccessToken = function(options, vault, tokenObj){ console.log('in verCredentials')
      return this.promisify(this.verCredentials.bind(this, options, vault, tokenObj))
   }
 
-  PhaseConfigurator.prototype.verCredentials = function(options, vault, tokenObj, resolve, reject){ // run phase that verifies access token
+  PhaseConfigurator.prototype.verCredentials = function(options, vault, tokenObj, resolve){ // run phase that verifies access token
 
    //  this.addWorkSpace(this.alternator) // adds tools to manage alternator state
      this.alternator.save({ legRun: this.legPhase.run, apiPhase: this.apiPhase }); // save apiPhase and legRun
@@ -864,7 +867,7 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
 
      this.alternator.changePhase({ apiPhase: this.verCredentialsPhase });  // add verCredentials as apiPhase
      
-     this.addVerCredentialsRun(options, vault, resolve, reject);   // add its run (actions);
+     this.addVerCredentialsRun(options, vault, resolve);   // add its run (actions);
      this.alternator.run(tokenObj); // runs the verCredentials phase
      
      var saved = this.alternator.saved                                         // things we saved
@@ -872,7 +875,7 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
   }
 
 
-  PhaseConfigurator.prototype.addVerCredentialsRun = function(options, vault, resolve, reject){
+  PhaseConfigurator.prototype.addVerCredentialsRun = function(options, vault, resolve){
      var legPhase            = this.alternator.legPhase;              // take current leg phase 
      var verCredentialsPhase = this.alternator.apiPhase;              // the new (changed) apiPhase
      var apiPhase            = this.alternator.saved.apiPhase;        // the old (saved) apiPhase
@@ -900,7 +903,8 @@ console.log(new hmacSha1('base64').digest(key, baseStr));
 
             console.log('verCredentials ended'); 
             console.log(verCredentialsPhase.action + ' ENDED'); console.timeEnd('t')
-            reject(credentials);                          //   
+            this.messages.accessTokenNotVerified = JSON.stringify(credentials);
+            this.next(this.CustomError('accessTokenNotVerified'));                          //   
          
          }.bind(this) // resolve it here
        
